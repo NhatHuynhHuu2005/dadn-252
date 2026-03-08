@@ -1,53 +1,66 @@
-import { Truck, Zap, Power, AlertCircle } from "lucide-react";
+import { Truck, Zap, Power, AlertCircle, Radio } from "lucide-react";
 
 export function EquipmentStatus() {
+  // Updated to match ERD: DEVICES table structure
   const equipment = [
     {
-      name: "Tractor #1",
+      device_id: "DEV001",
+      name: "Soil Sensor A1",
+      type: "sensor",
       status: "Active",
       statusColor: "green",
       location: "Field A",
-      battery: 85,
-      icon: Truck,
-    },
-    {
-      name: "Irrigation System #2",
-      status: "Active",
-      statusColor: "green",
-      location: "Field B",
-      battery: 92,
+      gateway: "GW001",
       icon: Zap,
     },
     {
-      name: "Tractor #3",
-      status: "Maintenance",
-      statusColor: "orange",
-      location: "Workshop",
-      battery: 45,
-      icon: Truck,
-    },
-    {
-      name: "Sprayer #1",
-      status: "Idle",
-      statusColor: "gray",
-      location: "Storage",
-      battery: 100,
+      device_id: "DEV003",
+      name: "Irrigation Valve A1",
+      type: "actuator",
+      status: "Active",
+      statusColor: "green",
+      location: "Field A",
+      gateway: "GW001",
       icon: Power,
     },
     {
-      name: "Harvester #1",
-      status: "Active",
-      statusColor: "green",
-      location: "Field D",
-      battery: 78,
-      icon: Truck,
+      device_id: "DEV006",
+      name: "Pump Controller B1",
+      type: "actuator",
+      status: "Offline",
+      statusColor: "red",
+      location: "Field B",
+      gateway: "GW001",
+      icon: Power,
     },
     {
-      name: "Drone #2",
-      status: "Charging",
-      statusColor: "blue",
-      location: "Charging Station",
-      battery: 35,
+      device_id: "DEV002",
+      name: "Temperature Sensor A2",
+      type: "sensor",
+      status: "Active",
+      statusColor: "green",
+      location: "Field A",
+      gateway: "GW001",
+      icon: Zap,
+    },
+    {
+      device_id: "DEV004",
+      name: "Weather Station Main",
+      type: "sensor",
+      status: "Active",
+      statusColor: "green",
+      location: "Central",
+      gateway: "GW002",
+      icon: Radio,
+    },
+    {
+      device_id: "DEV005",
+      name: "Humidity Sensor B1",
+      type: "sensor",
+      status: "Active",
+      statusColor: "green",
+      location: "Field B",
+      gateway: "GW001",
       icon: Zap,
     },
   ];
@@ -55,13 +68,13 @@ export function EquipmentStatus() {
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg">Equipment Status</h3>
-        <button className="text-sm text-green-600 hover:text-green-700">Manage Equipment</button>
+        <h3 className="text-lg">All Devices</h3>
+        <button className="text-sm text-green-600 hover:text-green-700">Manage Devices</button>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {equipment.map((item) => (
-          <div key={item.name} className="border border-gray-200 rounded-lg p-4">
+          <div key={item.device_id} className="border border-gray-200 rounded-lg p-4">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 bg-${item.statusColor}-100 rounded-lg flex items-center justify-center`}>
@@ -80,27 +93,20 @@ export function EquipmentStatus() {
             
             <div className="space-y-2 text-xs">
               <div className="flex justify-between">
+                <span className="text-gray-500">Device ID</span>
+                <span className="text-gray-700 font-mono">{item.device_id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Type</span>
+                <span className="text-gray-700 capitalize">{item.type}</span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-gray-500">Location</span>
                 <span className="text-gray-700">{item.location}</span>
               </div>
-              
-              <div>
-                <div className="flex justify-between mb-1">
-                  <span className="text-gray-500">Battery</span>
-                  <span className="text-gray-700">{item.battery}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div
-                    className={`${
-                      item.battery > 60
-                        ? "bg-green-500"
-                        : item.battery > 30
-                        ? "bg-orange-500"
-                        : "bg-red-500"
-                    } h-1.5 rounded-full`}
-                    style={{ width: `${item.battery}%` }}
-                  />
-                </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Gateway</span>
+                <span className="text-gray-700 font-mono">{item.gateway}</span>
               </div>
             </div>
           </div>

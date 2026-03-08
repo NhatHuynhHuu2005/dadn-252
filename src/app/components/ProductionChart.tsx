@@ -25,12 +25,13 @@ export function ProductionChart() {
       
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="month" stroke="#9ca3af" />
-          <YAxis stroke="#9ca3af" />
-          <Tooltip />
-          <Legend />
+          <CartesianGrid key="grid" strokeDasharray="3 3" stroke="#f0f0f0" />
+          <XAxis key="xaxis" dataKey="month" stroke="#9ca3af" />
+          <YAxis key="yaxis" stroke="#9ca3af" />
+          <Tooltip key="tooltip" />
+          <Legend key="legend" />
           <Line 
+            key="line-production"
             type="monotone" 
             dataKey="production" 
             stroke="#10b981" 
@@ -38,6 +39,7 @@ export function ProductionChart() {
             name="Actual Production"
           />
           <Line 
+            key="line-target"
             type="monotone" 
             dataKey="target" 
             stroke="#6366f1" 

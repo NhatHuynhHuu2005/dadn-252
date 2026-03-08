@@ -26,13 +26,13 @@ export function WaterUsageChart() {
       
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="day" stroke="#9ca3af" />
-          <YAxis stroke="#9ca3af" />
-          <Tooltip />
-          <Legend />
-          <Bar dataKey="usage" fill="#3b82f6" name="Actual Usage" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="optimal" fill="#e5e7eb" name="Optimal Range" radius={[4, 4, 0, 0]} />
+          <CartesianGrid key="grid" strokeDasharray="3 3" stroke="#f0f0f0" />
+          <XAxis key="xaxis" dataKey="day" stroke="#9ca3af" />
+          <YAxis key="yaxis" stroke="#9ca3af" />
+          <Tooltip key="tooltip" />
+          <Legend key="legend" />
+          <Bar key="bar-usage" dataKey="usage" fill="#3b82f6" name="Actual Usage" radius={[4, 4, 0, 0]} />
+          <Bar key="bar-optimal" dataKey="optimal" fill="#e5e7eb" name="Optimal Range" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
