@@ -2,6 +2,7 @@
 import 'dotenv/config'
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import './mqtt_client.js';//////////
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { initDatabase, seedDatabase } from './db/mssql-init.js';

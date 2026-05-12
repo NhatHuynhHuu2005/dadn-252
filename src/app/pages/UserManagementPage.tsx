@@ -1,9 +1,10 @@
-﻿import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAuth } from '../context/AuthContext';
 import { CustomSelect } from '../components/CustomSelect';
 import { useState, useEffect } from 'react';
 import { userApi, type User } from '../api/client';
 import { Users, Plus, Edit, Trash2, X, Shield, UserIcon } from 'lucide-react';
+import { getRoleBadgeConfig } from '../hooks/useRole';
 
 export function UserManagementPage() {
   const { user: currentUser } = useAuth();
@@ -32,7 +33,7 @@ export function UserManagementPage() {
   }, []);
 
 
-  if (currentUser?.role?.toUpperCase() !== 'ADMIN') {
+  if (currentUser?.role?.toLowerCase() !== 'admin') {
     return (
       <div className="empty-state" style={{ paddingTop: '100px' }}>
         <Shield className="w-14 h-14" />
@@ -99,13 +100,7 @@ export function UserManagementPage() {
   };
 
   const roleBadge = (role: string) => {
-    const config: Record<string, { cls: string; label: string }> = {
-      admin: { cls: 'bg-purple-100 text-purple-700', label: 'Quản trị viên' },
-      manager: { cls: 'bg-orange-100 text-orange-700', label: 'Quản lý' },
-      worker: { cls: 'bg-blue-100 text-blue-700', label: 'Thợ công' },
-      farmer: { cls: 'bg-green-100 text-green-700', label: 'Nông dân' },
-    };
-    const c = config[role] || config.farmer;
+    const c = getRoleBadgeConfig(role);
     return <span className={`status-badge ${c.cls}`}>{c.label}</span>;
   };
 
@@ -237,7 +232,6 @@ export function UserManagementPage() {
                   options={[
                     { value: 'admin', label: 'Quản trị viên' },
                     { value: 'manager', label: 'Quản lý' },
-                    { value: 'worker', label: 'Thợ công' },
                     { value: 'farmer', label: 'Nông dân' },
                   ]}
                 />

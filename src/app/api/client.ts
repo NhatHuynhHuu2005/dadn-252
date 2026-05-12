@@ -1,4 +1,4 @@
-﻿/**
+/**
  * API Client for Smart Farm Dashboard
  * Handles all communication with backend server
  */
@@ -67,8 +67,9 @@ export interface User {
   username: string;
   email: string;
   fullName: string;
-  role: 'admin' | 'manager' | 'worker' | 'farmer';
+  role: 'admin' | 'manager' | 'farmer';
   avatar?: string;
+  password?: string;
   createdAt: string;
   token?: string;
 }
@@ -127,6 +128,7 @@ export interface Field {
   userId: string;
   createdAt: string;
   image?: string;
+  zoneCode?: string;
   devices?: Device[];
 }
 
@@ -151,8 +153,9 @@ function normalizeDevice(device: any): Device {
 }
 
 export const fieldApi = {
-  async getAll(): Promise<Field[]> {
-    const fields = await fetchApi<Field[]>('/fields');
+  async getAll(userId?: string): Promise<Field[]> {
+    const endpoint = userId ? `/fields?userId=${userId}` : '/fields';
+    const fields = await fetchApi<Field[]>(endpoint);
     return fields.map(normalizeField);
   },
 
@@ -367,13 +370,24 @@ export interface ActionLog {
   target: string;
   details: string;
   category: 'user' | 'device';
+  fieldId?: string;
+  deviceId?: string;
+  triggeredBy?: 'manual' | 'schedule' | 'threshold' | 'SYSTEM';
+  status?: 'success' | 'fail';
   createdAt: string;
   user?: User;
 }
 
 export const actionLogApi = {
-  async getAll(limit: number = 100): Promise<ActionLog[]> {
-    return fetchApi<ActionLog[]>(`/action-logs?limit=${limit}`);
+  async getAll(limit: number = 200, filters?: { fieldId?: string; deviceId?: string; triggeredBy?: string; status?: string; from?: string; to?: string }): Promise<ActionLog[]> {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (filters?.fieldId && filters.fieldId !== 'all') params.append('fieldId', filters.fieldId);
+    if (filters?.deviceId && filters.deviceId !== 'all') params.append('deviceId', filters.deviceId);
+    if (filters?.triggeredBy && filters.triggeredBy !== 'all') params.append('triggeredBy', filters.triggeredBy);
+    if (filters?.status && filters.status !== 'all') params.append('status', filters.status);
+    if (filters?.from) params.append('from', filters.from);
+    if (filters?.to) params.append('to', filters.to);
+    return fetchApi<ActionLog[]>(`/action-logs?${params.toString()}`);
   },
 
   async getByUser(userId: string): Promise<ActionLog[]> {
@@ -451,7 +465,7 @@ export class WebSocketClient {
     }
   }
 
-  send(type: string, data: unknown): void {
+  send(type: string, data: any): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type, ...data }));
     } else {

@@ -1,4 +1,4 @@
-﻿import { NavLink, Outlet, useNavigate } from 'react-router';
+import { NavLink, Outlet, useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Map, Cpu, Bell, CalendarClock, Settings, LogOut, Menu, X, Leaf, User, ChevronDown, Activity, Users, BarChart3
@@ -7,7 +7,6 @@ import { useState } from 'react';
 
 const allNavItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['ADMIN', 'MANAGER', 'WORKER', 'FARMER'] },
-  { to: '/analysis', icon: BarChart3, label: 'Phân tích', roles: ['ADMIN', 'MANAGER'] },
   { to: '/fields', icon: Map, label: 'Cánh đồng', roles: ['ADMIN', 'MANAGER', 'WORKER', 'FARMER'] },
   { to: '/devices', icon: Cpu, label: 'Thiết bị', roles: ['ADMIN', 'MANAGER', 'WORKER', 'FARMER'] },
   { to: '/alerts', icon: Bell, label: 'Cảnh báo', roles: ['ADMIN', 'MANAGER', 'WORKER', 'FARMER'] },

@@ -8,7 +8,7 @@ const sqlConfig: sql.config = {
     type: 'default',
     options: {
       userName: process.env.MSSQL_USER || 'sa',
-      password: process.env.MSSQL_PASSWORD || 'nhathuynh2005',
+      password: process.env.MSSQL_PASSWORD || '04050607@',
     }
   },
   options: {

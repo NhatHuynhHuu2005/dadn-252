@@ -1,8 +1,9 @@
-﻿import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { CustomSelect } from '../components/CustomSelect';
 import { useState, useEffect } from 'react';
 import { scheduleApi, deviceApi, fieldApi, type Schedule, type Device, type Field } from '../api/client';
 import { CalendarClock, Plus, Edit, Trash2, X, Power, PowerOff, Eye, ChevronLeft } from 'lucide-react';
+import { useRole } from '../hooks/useRole';
 
 export function SchedulesPage() {
   const [scheduleList, setScheduleList] = useState<Schedule[]>([]);
@@ -15,6 +16,9 @@ export function SchedulesPage() {
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [filterFieldId, setFilterFieldId] = useState('all');
+
+  const { canManageSchedules } = useRole();
 
   useEffect(() => {
     const loadData = async () => {
@@ -174,12 +178,16 @@ export function SchedulesPage() {
             <p className="text-xs text-gray-400 mt-1">Ngày tạo: {new Date(selectedSchedule.createdAt).toLocaleDateString('vi-VN')}</p>
           </div>
           <div className="flex gap-3 pt-5 border-t border-gray-100">
-            <button onClick={() => openEdit(selectedSchedule)} className="action-btn edit" style={{ width: 'auto', borderRadius: '50px', padding: '8px 20px', gap: '6px' }}>
-              <Edit className="w-4 h-4" /> Sửa
-            </button>
-            <button onClick={() => setDeleteTarget(selectedSchedule.id)} className="action-btn delete" style={{ width: 'auto', borderRadius: '50px', padding: '8px 20px', gap: '6px' }}>
-              <Trash2 className="w-4 h-4" /> Xóa
-            </button>
+            {canManageSchedules && (
+              <>
+                <button onClick={() => openEdit(selectedSchedule)} className="action-btn edit" style={{ width: 'auto', borderRadius: '50px', padding: '8px 20px', gap: '6px' }}>
+                  <Edit className="w-4 h-4" /> Sửa
+                </button>
+                <button onClick={() => setDeleteTarget(selectedSchedule.id)} className="action-btn delete" style={{ width: 'auto', borderRadius: '50px', padding: '8px 20px', gap: '6px' }}>
+                  <Trash2 className="w-4 h-4" /> Xóa
+                </button>
+              </>
+            )}
           </div>
         </div>
         <ConfirmDialog open={!!deleteTarget} title="Xóa lịch hẹn" message="Bạn có chắc chắn muốn xóa lịch hẹn này? Thiết bị sẽ không tự động bật/tắt theo lịch này nữa." onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} confirmLabel="Xóa" />
@@ -192,15 +200,39 @@ export function SchedulesPage() {
       <div className="flex items-center justify-between">
         <div className="page-header" style={{ marginBottom: 0 }}>
           <h1>Lịch hẹn</h1>
-          <p>Đặt lịch tự động bật/tắt thiết bị</p>
+          <p>Đặt lịch tự động bật/tắt thiết bị theo từng khu vực</p>
         </div>
-        <button onClick={openAdd} className="btn-primary">
-          <Plus className="w-4 h-4" /> Thêm lịch
-        </button>
+        {canManageSchedules && (
+          <button onClick={openAdd} className="btn-primary">
+            <Plus className="w-4 h-4" /> Thêm lịch
+          </button>
+        )}
       </div>
 
+      {/* Filter theo khu vực */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setFilterFieldId('all')}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+            filterFieldId === 'all' ? 'bg-green-600 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          Tất cả khu vực
+        </button>
+        {fields.map(f => (
+          <button
+            key={f.id}
+            onClick={() => setFilterFieldId(f.id)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+              filterFieldId === f.id ? 'bg-green-600 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {f.zoneCode ? `${f.zoneCode} - ${f.name}` : f.name}
+          </button>
+        ))}
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {scheduleList.map(s => {
+        {scheduleList.filter(s => filterFieldId === 'all' || s.fieldId === filterFieldId).map(s => {
           const device = devices.find(d => d.id === s.deviceId);
           const field = fields.find(f => f.id === s.fieldId);
           return (
@@ -223,14 +255,23 @@ export function SchedulesPage() {
                 <CalendarClock className="w-4 h-4" />
                 <span>{parseCron(s.cronExpression)}</span>
               </div>
-              <div className="flex items-center gap-3 text-xs text-gray-400">
+              <div className="flex items-center gap-2 text-xs text-gray-400">
+                {field?.zoneCode && (
+                  <span className="px-1.5 py-0.5 bg-green-50 text-green-700 font-semibold rounded-full border border-green-200">
+                    {field.zoneCode}
+                  </span>
+                )}
                 <span>{field?.name || 'N/A'}</span>
-                <span>Hành động: {s.action === 'on' ? 'Bật' : 'Tắt'}</span>
+                <span>• Hành động: {s.action === 'on' ? 'Bật' : 'Tắt'}</span>
               </div>
               <div className="flex gap-2 mt-4 pt-3 border-t border-gray-100">
                 <button onClick={e => { e.stopPropagation(); setSelectedSchedule(s); }} className="action-btn view" title="Xem"><Eye className="w-4 h-4" /></button>
-                <button onClick={e => { e.stopPropagation(); openEdit(s); }} className="action-btn edit" title="Sửa"><Edit className="w-4 h-4" /></button>
-                <button onClick={e => { e.stopPropagation(); setDeleteTarget(s.id); }} className="action-btn delete" title="Xóa"><Trash2 className="w-4 h-4" /></button>
+                {canManageSchedules && (
+                  <>
+                    <button onClick={e => { e.stopPropagation(); openEdit(s); }} className="action-btn edit" title="Sửa"><Edit className="w-4 h-4" /></button>
+                    <button onClick={e => { e.stopPropagation(); setDeleteTarget(s.id); }} className="action-btn delete" title="Xóa"><Trash2 className="w-4 h-4" /></button>
+                  </>
+                )}
               </div>
             </div>
           );
