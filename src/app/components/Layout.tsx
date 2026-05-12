@@ -6,6 +6,7 @@ import {
 import { useState } from 'react';
 
 const allNavItems = [
+<<<<<<< HEAD
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['admin', 'manager', 'worker', 'farmer'] },
   { to: '/analysis', icon: BarChart3, label: 'Phan tich', roles: ['admin', 'manager'] },
   { to: '/fields', icon: Map, label: 'Canh dong', roles: ['admin', 'manager', 'farmer'] },
@@ -15,6 +16,16 @@ const allNavItems = [
   { to: '/action-logs', icon: Activity, label: 'Nhat ky', roles: ['admin', 'manager'] },
   { to: '/users', icon: Users, label: 'Nguoi dung', roles: ['admin'] },
   { to: '/settings', icon: Settings, label: 'Cai dat', roles: ['admin', 'manager'] },
+=======
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard', roles: ['ADMIN', 'MANAGER', 'WORKER', 'FARMER'] },
+  { to: '/fields', icon: Map, label: 'Cánh đồng', roles: ['ADMIN', 'MANAGER', 'WORKER', 'FARMER'] },
+  { to: '/devices', icon: Cpu, label: 'Thiết bị', roles: ['ADMIN', 'MANAGER', 'WORKER', 'FARMER'] },
+  { to: '/alerts', icon: Bell, label: 'Cảnh báo', roles: ['ADMIN', 'MANAGER', 'WORKER', 'FARMER'] },
+  { to: '/schedules', icon: CalendarClock, label: 'Lịch hẹn', roles: ['ADMIN', 'MANAGER', 'WORKER'] },
+  { to: '/action-logs', icon: Activity, label: 'Nhật ký', roles: ['ADMIN', 'MANAGER'] },
+  { to: '/users', icon: Users, label: 'Người dùng', roles: ['ADMIN'] },
+  { to: '/settings', icon: Settings, label: 'Cài đặt', roles: ['ADMIN', 'MANAGER'] },
+>>>>>>> khanh
 ];
 
 export function Layout() {
@@ -30,7 +41,11 @@ export function Layout() {
 
   // Filter nav items based on user role
   const navItems = allNavItems.filter(item => 
+<<<<<<< HEAD
     item.roles.includes(user?.role || 'farmer')
+=======
+    item.roles.includes(user?.role?.toUpperCase() || 'FARMER')
+>>>>>>> khanh
   );
 
   return (
@@ -78,7 +93,11 @@ export function Layout() {
           <div className="h-px bg-white/10 mb-4" />
           <button onClick={handleLogout} className="sidebar-nav-item w-full hover:!bg-red-500/10 hover:!text-red-400">
             <LogOut className="w-[18px] h-[18px]" />
+<<<<<<< HEAD
             <span>Dang xuat</span>
+=======
+            <span>Đăng xuất</span>
+>>>>>>> khanh
           </button>
         </div>
       </aside>
@@ -92,7 +111,11 @@ export function Layout() {
           </button>
 
           <div className="hidden lg:block">
+<<<<<<< HEAD
             <p className="text-gray-400 text-xs uppercase tracking-wider">Chao mung tro lai</p>
+=======
+            <p className="text-gray-400 text-xs uppercase tracking-wider">Chào mừng trở lại</p>
+>>>>>>> khanh
             <p className="text-gray-800">{user?.fullName}</p>
           </div>
 
@@ -121,7 +144,11 @@ export function Layout() {
                   </div>
                   <div className="p-1">
                     <button onClick={handleLogout} className="dropdown-item danger w-full">
+<<<<<<< HEAD
                       <LogOut className="w-4 h-4" /> Dang xuat
+=======
+                      <LogOut className="w-4 h-4" /> Đăng xuất
+>>>>>>> khanh
                     </button>
                   </div>
                 </div>
@@ -138,3 +165,7 @@ export function Layout() {
     </div>
   );
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> khanh

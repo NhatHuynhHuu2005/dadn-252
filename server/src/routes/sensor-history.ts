@@ -11,7 +11,11 @@ router.get('/:deviceId', async (req: Request, res: Response) => {
     const history = await allAsync(
       `SELECT TOP (${limit}) * FROM sensor_history
       WHERE deviceId = ?
+<<<<<<< HEAD
       ORDER BY timestamp DESC`,
+=======
+      ORDER BY createdAt DESC`,
+>>>>>>> khanh
       [req.params.deviceId]
     );
     
@@ -31,7 +35,11 @@ router.post('/batch', async (req: Request, res: Response) => {
       const history = await allAsync(
         `SELECT TOP (${Math.min(limit, 1000)}) * FROM sensor_history
         WHERE deviceId = ?
+<<<<<<< HEAD
         ORDER BY timestamp DESC`,
+=======
+        ORDER BY createdAt DESC`,
+>>>>>>> khanh
         [deviceId]
       );
       
@@ -48,12 +56,21 @@ router.post('/batch', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const { id, deviceId, value } = req.body;
+<<<<<<< HEAD
     const timestamp = new Date().toISOString();
     
     await runAsync(
       `INSERT INTO sensor_history (id, deviceId, value, timestamp)
       VALUES (?, ?, ?, ?)`,
       [id || `reading_${Date.now()}`, deviceId, value, timestamp]
+=======
+    const createdAt = new Date().toISOString();
+    
+    await runAsync(
+      `INSERT INTO sensor_history (id, deviceId, value, createdAt)
+      VALUES (?, ?, ?, ?)`,
+      [id || `reading_${Date.now()}`, deviceId, value, createdAt]
+>>>>>>> khanh
     );
 
     // Update device lastValue
@@ -62,7 +79,11 @@ router.post('/', async (req: Request, res: Response) => {
       [value, deviceId]
     );
 
+<<<<<<< HEAD
     const reading = await getAsync('SELECT TOP (1) * FROM sensor_history WHERE deviceId = ? ORDER BY timestamp DESC', [deviceId]);
+=======
+    const reading = await getAsync('SELECT TOP (1) * FROM sensor_history WHERE deviceId = ? ORDER BY createdAt DESC', [deviceId]);
+>>>>>>> khanh
     
     // Broadcast to WebSocket clients
     if (reading) {

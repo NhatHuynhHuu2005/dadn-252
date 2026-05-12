@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 "use client";
+=======
+﻿"use client";
+>>>>>>> khanh
 
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
@@ -351,3 +355,8 @@ export {
   ChartLegendContent,
   ChartStyle,
 };
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> khanh

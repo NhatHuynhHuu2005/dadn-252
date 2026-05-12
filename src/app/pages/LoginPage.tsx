@@ -18,7 +18,11 @@ export function LoginPage() {
     if (success) {
       navigate('/');
     } else {
+<<<<<<< HEAD
       setError('Sai ten dang nhap hoac mat khau!');
+=======
+      setError('Sai tên đăng nhập hoặc mật khẩu!');
+>>>>>>> khanh
     }
   };
 
@@ -35,12 +39,20 @@ export function LoginPage() {
             <Leaf className="w-8 h-8 text-[#0f2b0f]" />
           </div>
           <h1 className="text-white text-3xl tracking-tight">Smart Farm</h1>
+<<<<<<< HEAD
           <p className="text-white/40 mt-2 text-sm">He thong quan ly nong trai thong minh</p>
+=======
+          <p className="text-white/40 mt-2 text-sm">Hệ thống quản lý nông trại thông minh</p>
+>>>>>>> khanh
         </div>
 
         {/* Login card */}
         <div className="farm-card-static p-8" style={{ borderRadius: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+<<<<<<< HEAD
           <h2 className="text-gray-800 text-center mb-8">Dang nhap</h2>
+=======
+          <h2 className="text-gray-800 text-center mb-8">Đăng nhập</h2>
+>>>>>>> khanh
 
           {error && (
             <div className="mb-5 p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm text-center" style={{ animation: 'slideUp 0.2s ease' }}>
@@ -50,27 +62,43 @@ export function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
+<<<<<<< HEAD
               <label className="block text-xs text-gray-500 mb-2 uppercase tracking-wider">Ten dang nhap</label>
+=======
+              <label className="block text-xs text-gray-500 mb-2 uppercase tracking-wider">Tên đăng nhập</label>
+>>>>>>> khanh
               <input
                 type="text"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 className="form-input"
+<<<<<<< HEAD
                 placeholder="Nhap ten dang nhap"
+=======
+                placeholder="Nhập tên đăng nhập"
+>>>>>>> khanh
                 required
                 disabled={isLoading}
               />
             </div>
 
             <div>
+<<<<<<< HEAD
               <label className="block text-xs text-gray-500 mb-2 uppercase tracking-wider">Mat khau</label>
+=======
+              <label className="block text-xs text-gray-500 mb-2 uppercase tracking-wider">Mật khẩu</label>
+>>>>>>> khanh
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   className="form-input pr-12"
+<<<<<<< HEAD
                   placeholder="Nhap mat khau"
+=======
+                  placeholder="Nhập mật khẩu"
+>>>>>>> khanh
                   required
                   disabled={isLoading}
                 />
@@ -89,23 +117,41 @@ export function LoginPage() {
               {isLoading ? (
                 <>
                   <Loader className="w-4 h-4 animate-spin" />
+<<<<<<< HEAD
                   Dang nhap...
                 </>
               ) : (
                 <>
                   Dang nhap <ArrowRight className="w-4 h-4" />
+=======
+                  Đăng nhập...
+                </>
+              ) : (
+                <>
+                  Đăng nhập <ArrowRight className="w-4 h-4" />
+>>>>>>> khanh
                 </>
               )}
             </button>
           </form>
 
           <div className="mt-7 p-4 bg-green-50/80 rounded-xl border border-green-100">
+<<<<<<< HEAD
             <p className="text-xs text-green-700 mb-2 uppercase tracking-wider">Tai khoan demo</p>
             <div className="text-sm text-green-800 space-y-1.5">
               <p className="flex items-center gap-2"><span className="px-2 py-0.5 bg-purple-200 rounded-full text-[10px] uppercase tracking-wider text-purple-700">Admin</span> admin / admin123</p>
               <p className="flex items-center gap-2"><span className="px-2 py-0.5 bg-orange-100 rounded-full text-[10px] uppercase tracking-wider text-orange-700">Manager</span> manager / manager123</p>
               <p className="flex items-center gap-2"><span className="px-2 py-0.5 bg-blue-100 rounded-full text-[10px] uppercase tracking-wider text-blue-700">Worker</span> worker / worker123</p>
               <p className="flex items-center gap-2"><span className="px-2 py-0.5 bg-green-200 rounded-full text-[10px] uppercase tracking-wider">Farmer</span> farmer / farmer123</p>
+=======
+            <p className="text-xs text-green-700 mb-2 uppercase tracking-wider">Tài khoản demo</p>
+            <div className="text-sm text-green-800 space-y-1.5">
+              <p className="flex items-center gap-2"><span className="px-2 py-0.5 bg-purple-200 rounded-full text-[10px] uppercase tracking-wider text-purple-700">Admin</span> admin / admin123</p>
+              <p className="flex items-center gap-2"><span className="px-2 py-0.5 bg-orange-100 rounded-full text-[10px] uppercase tracking-wider text-orange-700">Manager</span> managerA / manager123</p>
+              <p className="flex items-center gap-2"><span className="px-2 py-0.5 bg-orange-100 rounded-full text-[10px] uppercase tracking-wider text-orange-700">Manager</span> managerB / manager123</p>
+              <p className="flex items-center gap-2"><span className="px-2 py-0.5 bg-green-200 rounded-full text-[10px] uppercase tracking-wider">Farmer</span> farmerC / farmer123</p>
+              <p className="flex items-center gap-2"><span className="px-2 py-0.5 bg-green-200 rounded-full text-[10px] uppercase tracking-wider">Farmer</span> farmerD / farmer123</p>
+>>>>>>> khanh
             </div>
           </div>
         </div>
@@ -113,3 +159,7 @@ export function LoginPage() {
     </div>
   );
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> khanh

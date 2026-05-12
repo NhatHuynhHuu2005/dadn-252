@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+import 'dotenv/config';
+>>>>>>> khanh
 import sql from 'mssql';
 
 const sqlConfig: sql.config = {
@@ -7,7 +11,11 @@ const sqlConfig: sql.config = {
     type: 'default',
     options: {
       userName: process.env.MSSQL_USER || 'sa',
+<<<<<<< HEAD
       password: process.env.MSSQL_PASSWORD || 'nhathuynh2005',
+=======
+      password: process.env.MSSQL_PASSWORD || '04050607@',
+>>>>>>> khanh
     }
   },
   options: {
@@ -42,4 +50,8 @@ export async function closePool(): Promise<void> {
   }
 }
 
+<<<<<<< HEAD
 export default sql;
+=======
+export default sql;
+>>>>>>> khanh

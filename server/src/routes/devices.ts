@@ -33,6 +33,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // Create device
+<<<<<<< HEAD
 router.post('/', async (req: Request, res: Response) => {
   try {
     const { id, name, fieldId, type, status, unit } = req.body;
@@ -45,16 +46,43 @@ router.post('/', async (req: Request, res: Response) => {
     const device = await getAsync('SELECT * FROM devices WHERE id = ?', [id]);
     res.status(201).json(device);
   } catch (error) {
+=======
+// Create device
+router.post('/', async (req: Request, res: Response) => {
+  try {
+    const { id, name, fieldId, type, status, unit } = req.body;
+    
+    const newId = id || `dev_${Date.now()}`;
+
+    await runAsync(
+      `INSERT INTO devices (id, name, fieldId, type, status, unit)
+      VALUES (?, ?, ?, ?, ?, ?)`,
+      [newId, name, fieldId, type, status || 'online', unit]
+    );
+
+    const device = await getAsync('SELECT * FROM devices WHERE id = ?', [newId]);
+    res.status(201).json(device);
+  } catch (error) {
+    console.error(error);
+>>>>>>> khanh
     res.status(500).json({ error: 'Failed to create device' });
   }
 });
 
 // Update device  
+<<<<<<< HEAD
+=======
+// Update device  
+>>>>>>> khanh
 router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { name, status, lastValue } = req.body;
     await runAsync(
+<<<<<<< HEAD
       `UPDATE devices SET name = ?, status = ?, lastValue = ?, lastUpdate = CURRENT_TIMESTAMP, updatedAt = CURRENT_TIMESTAMP
+=======
+      `UPDATE devices SET name = ?, status = ?, lastValue = ?, lastUpdate = CURRENT_TIMESTAMP
+>>>>>>> khanh
       WHERE id = ?`,
       [name, status, lastValue, req.params.id]
     );
@@ -62,6 +90,10 @@ router.put('/:id', async (req: Request, res: Response) => {
     const device = await getAsync('SELECT * FROM devices WHERE id = ?', [req.params.id]);
     res.json(device);
   } catch (error) {
+<<<<<<< HEAD
+=======
+    console.error("Lỗi update device:", error);
+>>>>>>> khanh
     res.status(500).json({ error: 'Failed to update device' });
   }
 });

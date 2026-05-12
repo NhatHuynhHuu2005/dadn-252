@@ -3,6 +3,10 @@ import { CustomSelect } from '../components/CustomSelect';
 import { useState, useEffect } from 'react';
 import { scheduleApi, deviceApi, fieldApi, type Schedule, type Device, type Field } from '../api/client';
 import { CalendarClock, Plus, Edit, Trash2, X, Power, PowerOff, Eye, ChevronLeft } from 'lucide-react';
+<<<<<<< HEAD
+=======
+import { useRole } from '../hooks/useRole';
+>>>>>>> khanh
 
 export function SchedulesPage() {
   const [scheduleList, setScheduleList] = useState<Schedule[]>([]);
@@ -10,27 +14,47 @@ export function SchedulesPage() {
   const [fields, setFields] = useState<Field[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
+<<<<<<< HEAD
   const [form, setForm] = useState({ name: '', deviceId: '', action: 'on' as 'on' | 'off', cronExpression: '', isActive: true });
+=======
+  const [form, setForm] = useState({ name: '', fieldId: '', deviceId: '', action: 'on' as 'on' | 'off', cronExpression: '', isActive: true });
+>>>>>>> khanh
   const [formError, setFormError] = useState('');
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+<<<<<<< HEAD
   const [error, setError] = useState<string | null>(null);
+=======
+  const [filterFieldId, setFilterFieldId] = useState('all');
+
+  const { canManageSchedules } = useRole();
+>>>>>>> khanh
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
         const [schedulesData, devicesData, fieldsData] = await Promise.all([
+<<<<<<< HEAD
           scheduleApi.getAll(),
           deviceApi.getAll(),
           fieldApi.getAll(),
+=======
+          scheduleApi.getAll().catch(() => []),
+          deviceApi.getAll().catch(() => []),
+          fieldApi.getAll().catch(() => []),
+>>>>>>> khanh
         ]);
         setScheduleList(schedulesData);
         setDevices(devicesData);
         setFields(fieldsData);
       } catch (err) {
+<<<<<<< HEAD
         setError(err instanceof Error ? err.message : 'Failed to load data');
+=======
+        console.error(err);
+>>>>>>> khanh
       } finally {
         setLoading(false);
       }
@@ -38,23 +62,37 @@ export function SchedulesPage() {
     loadData();
   }, []);
 
+<<<<<<< HEAD
 
   const actuators = devices.filter(d => ['pump', 'valve', 'fan'].includes(d.type));
 
   const openAdd = () => {
     setEditingSchedule(null);
     setForm({ name: '', deviceId: actuators[0]?.id || '', action: 'on', cronExpression: '0 6 * * *', isActive: true });
+=======
+  // Lọc thiết bị: Bao gồm cả chữ 'control' hoặc 'CONTROL' từ DB
+  const actuators = devices.filter(d => ['pump', 'valve', 'fan', 'control'].includes((d.type || '').toLowerCase()));
+
+  const openAdd = () => {
+    setEditingSchedule(null);
+    setForm({ name: '', fieldId: fields[0]?.id || '', deviceId: '', action: 'on', cronExpression: '0 6 * * *', isActive: true });
+>>>>>>> khanh
     setFormError('');
     setShowModal(true);
   };
 
   const openEdit = (s: Schedule) => {
     setEditingSchedule(s);
+<<<<<<< HEAD
     setForm({ name: s.name, deviceId: s.deviceId, action: s.action, cronExpression: s.cronExpression, isActive: s.isActive });
+=======
+    setForm({ name: s.name, fieldId: s.fieldId || '', deviceId: s.deviceId || '', action: s.action as 'on' | 'off', cronExpression: s.cronExpression, isActive: s.isActive });
+>>>>>>> khanh
     setFormError('');
     setShowModal(true);
   };
 
+<<<<<<< HEAD
   const handleSave = () => {
     if (!form.name) { setFormError('Vui long nhap ten lich hen'); return; }
     if (!form.deviceId) { setFormError('Vui long chon thiet bi'); return; }
@@ -74,31 +112,97 @@ export function SchedulesPage() {
       setScheduleList(prev => prev.filter(s => s.id !== deleteTarget));
       if (selectedSchedule?.id === deleteTarget) setSelectedSchedule(null);
       setDeleteTarget(null);
+=======
+  const handleSave = async () => {
+    if (!form.name) { setFormError('Vui lòng nhập tên lịch hẹn'); return; }
+    if (!form.fieldId) { setFormError('Vui lòng chọn cánh đồng'); return; }
+    if (!form.deviceId) { setFormError('Vui lòng chọn thiết bị'); return; }
+    if (!form.cronExpression) { setFormError('Vui lòng nhập cron expression'); return; }
+
+    try {
+      if (editingSchedule) {
+        const updated = await scheduleApi.update(editingSchedule.id, form);
+        setScheduleList(prev => prev.map(s => s.id === editingSchedule.id ? updated : s));
+        if(selectedSchedule?.id === editingSchedule.id) setSelectedSchedule(updated);
+      } else {
+        const created = await scheduleApi.create(form);
+        setScheduleList(prev => [created, ...prev]);
+      }
+      setShowModal(false);
+    } catch (error) {
+      console.error(error);
+      setFormError('Lỗi khi lưu vào Database! Vui lòng khởi động lại server Node.js.');
+    }
+  };
+
+  const toggleActive = async (id: string) => {
+    const s = scheduleList.find(x => x.id === id);
+    if (!s) return;
+
+    try {
+      await scheduleApi.update(id, { ...s, isActive: !s.isActive }); 
+      
+      setScheduleList(prev => prev.map(x => x.id === id ? { ...x, isActive: !x.isActive } : x));
+      
+      if (selectedSchedule?.id === id) {
+        setSelectedSchedule({ ...selectedSchedule, isActive: !s.isActive });
+      }
+    } catch(err) {
+      console.error("Lỗi khi cập nhật lịch hẹn:", err);
+      alert("Không thể lưu trạng thái lịch hẹn vào hệ thống!");
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (deleteTarget) {
+      try {
+        await scheduleApi.delete(deleteTarget); // Xóa khỏi DB
+        setScheduleList(prev => prev.filter(s => s.id !== deleteTarget));
+        if (selectedSchedule?.id === deleteTarget) setSelectedSchedule(null);
+        setDeleteTarget(null);
+      } catch(err) {
+        console.error(err);
+      }
+>>>>>>> khanh
     }
   };
 
   const parseCron = (cron: string) => {
+<<<<<<< HEAD
+=======
+    if(!cron) return 'N/A';
+>>>>>>> khanh
     const parts = cron.split(' ');
     if (parts.length >= 5) {
       const minute = parts[0].padStart(2, '0');
       const hour = parts[1].padStart(2, '0');
       const dayOfMonth = parts[2];
+<<<<<<< HEAD
       const month = parts[3];
+=======
+>>>>>>> khanh
       const dayOfWeek = parts[4];
       let schedule = `${hour}:${minute}`;
       if (dayOfWeek !== '*') {
         const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
         schedule += ` ${dayOfWeek.split(',').map(d => days[parseInt(d)] || d).join(', ')}`;
       } else if (dayOfMonth !== '*') {
+<<<<<<< HEAD
         schedule += ` ngay ${dayOfMonth}`;
       } else {
         schedule += ' hang ngay';
+=======
+        schedule += ` ngày ${dayOfMonth}`;
+      } else {
+        schedule += ' hàng ngày';
+>>>>>>> khanh
       }
       return schedule;
     }
     return cron;
   };
 
+<<<<<<< HEAD
   // Detail view
   if (selectedSchedule) {
     const device = devices.find(d => d.id === selectedSchedule.deviceId);
@@ -107,6 +211,16 @@ export function SchedulesPage() {
       <div className="space-y-6">
         <button onClick={() => setSelectedSchedule(null)} className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 transition-colors">
           <ChevronLeft className="w-4 h-4" /> Quay lai danh sach
+=======
+  // Detảil view
+  if (selectedSchedule) {
+    const device = devices.find(d => d.id === selectedSchedule.deviceId);
+    const field = fields.find(f => f.id === selectedSchedule.fieldId);
+    return (
+      <div className="space-y-6">
+        <button onClick={() => setSelectedSchedule(null)} className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 transition-colors">
+          <ChevronLeft className="w-4 h-4" /> Quay lại danh sách
+>>>>>>> khanh
         </button>
         <div className="farm-card-static p-6">
           <div className="flex items-start justify-between mb-6">
@@ -117,7 +231,11 @@ export function SchedulesPage() {
               <div>
                 <h2 className="text-gray-800">{selectedSchedule.name}</h2>
                 <span className={`status-badge ${selectedSchedule.isActive ? 'active' : 'inactive'}`}>
+<<<<<<< HEAD
                   {selectedSchedule.isActive ? 'Dang hoat dong' : 'Tam dung'}
+=======
+                  {selectedSchedule.isActive ? 'Đang hoạt động' : 'Tạm dừng'}
+>>>>>>> khanh
                 </span>
               </div>
             </div>
@@ -127,10 +245,17 @@ export function SchedulesPage() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             {[
+<<<<<<< HEAD
               { l: 'Thiet bi', v: device?.name || 'N/A' },
               { l: 'Canh dong', v: field?.name || 'N/A' },
               { l: 'Lich trinh', v: parseCron(selectedSchedule.cronExpression) },
               { l: 'Hanh dong', v: selectedSchedule.action === 'on' ? 'Bat thiet bi' : 'Tat thiet bi' },
+=======
+              { l: 'Thiết bị', v: device?.name || 'N/A' },
+              { l: 'Cánh đồng', v: field?.name || 'N/A' },
+              { l: 'Lịch trình', v: parseCron(selectedSchedule.cronExpression) },
+              { l: 'Hành động', v: selectedSchedule.action === 'on' ? 'Bật thiết bị' : 'Tắt thiết bị' },
+>>>>>>> khanh
             ].map(item => (
               <div key={item.l} className="bg-[#f8faf8] rounded-xl p-4 border border-green-50">
                 <p className="text-[11px] text-gray-400 uppercase tracking-wider">{item.l}</p>
@@ -141,6 +266,7 @@ export function SchedulesPage() {
           <div className="bg-[#f8faf8] rounded-xl p-4 mb-6 border border-green-50">
             <p className="text-[11px] text-gray-400 uppercase tracking-wider">Cron Expression</p>
             <p className="text-sm text-gray-800 mt-1 font-mono">{selectedSchedule.cronExpression}</p>
+<<<<<<< HEAD
             <p className="text-xs text-gray-400 mt-1">Ngay tao: {new Date(selectedSchedule.createdAt).toLocaleDateString('vi-VN')}</p>
           </div>
           <div className="flex gap-3 pt-5 border-t border-gray-100">
@@ -153,6 +279,24 @@ export function SchedulesPage() {
           </div>
         </div>
         <ConfirmDialog open={!!deleteTarget} title="Xoa lich hen" message="Ban co chac chan muon xoa lich hen nay? Thiet bi se khong tu dong bat/tat theo lich nay nua." onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} confirmLabel="Xoa" />
+=======
+            <p className="text-xs text-gray-400 mt-1">Ngày tạo: {new Date(selectedSchedule.createdAt).toLocaleDateString('vi-VN')}</p>
+          </div>
+          <div className="flex gap-3 pt-5 border-t border-gray-100">
+            {canManageSchedules && (
+              <>
+                <button onClick={() => openEdit(selectedSchedule)} className="action-btn edit" style={{ width: 'auto', borderRadius: '50px', padding: '8px 20px', gap: '6px' }}>
+                  <Edit className="w-4 h-4" /> Sửa
+                </button>
+                <button onClick={() => setDeleteTarget(selectedSchedule.id)} className="action-btn delete" style={{ width: 'auto', borderRadius: '50px', padding: '8px 20px', gap: '6px' }}>
+                  <Trash2 className="w-4 h-4" /> Xóa
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+        <ConfirmDialog open={!!deleteTarget} title="Xóa lịch hẹn" message="Bạn có chắc chắn muốn xóa lịch hẹn này? Thiết bị sẽ không tự động bật/tắt theo lịch này nữa." onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} confirmLabel="Xóa" />
+>>>>>>> khanh
       </div>
     );
   }
@@ -161,6 +305,7 @@ export function SchedulesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="page-header" style={{ marginBottom: 0 }}>
+<<<<<<< HEAD
           <h1>Lich hen</h1>
           <p>Dat lich tu dong bat/tat thiet bi</p>
         </div>
@@ -173,6 +318,44 @@ export function SchedulesPage() {
         {scheduleList.map(s => {
           const device = devices.find(d => d.id === s.deviceId);
           const field = device ? fields.find(f => f.id === device.fieldId) : null;
+=======
+          <h1>Lịch hẹn</h1>
+          <p>Đặt lịch tự động bật/tắt thiết bị theo từng khu vực</p>
+        </div>
+        {canManageSchedules && (
+          <button onClick={openAdd} className="btn-primary">
+            <Plus className="w-4 h-4" /> Thêm lịch
+          </button>
+        )}
+      </div>
+
+      {/* Filter theo khu vực */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setFilterFieldId('all')}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+            filterFieldId === 'all' ? 'bg-green-600 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          Tất cả khu vực
+        </button>
+        {fields.map(f => (
+          <button
+            key={f.id}
+            onClick={() => setFilterFieldId(f.id)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+              filterFieldId === f.id ? 'bg-green-600 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {f.zoneCode ? `${f.zoneCode} - ${f.name}` : f.name}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {scheduleList.filter(s => filterFieldId === 'all' || s.fieldId === filterFieldId).map(s => {
+          const device = devices.find(d => d.id === s.deviceId);
+          const field = fields.find(f => f.id === s.fieldId);
+>>>>>>> khanh
           return (
             <div key={s.id} className={`farm-card p-5 ${!s.isActive ? 'opacity-60' : ''} cursor-pointer`} onClick={() => setSelectedSchedule(s)}>
               <div className="flex items-start justify-between mb-3">
@@ -182,7 +365,11 @@ export function SchedulesPage() {
                   </div>
                   <div>
                     <p className="text-gray-800">{s.name}</p>
+<<<<<<< HEAD
                     <p className="text-xs text-gray-500">{device?.name}</p>
+=======
+                    <p className="text-xs text-gray-500">{device?.name || 'N/A'}</p>
+>>>>>>> khanh
                   </div>
                 </div>
                 <button onClick={e => { e.stopPropagation(); toggleActive(s.id); }} className={`w-10 h-6 rounded-full flex items-center px-0.5 transition-colors ${s.isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
@@ -193,6 +380,7 @@ export function SchedulesPage() {
                 <CalendarClock className="w-4 h-4" />
                 <span>{parseCron(s.cronExpression)}</span>
               </div>
+<<<<<<< HEAD
               <div className="flex items-center gap-3 text-xs text-gray-400">
                 <span>{field?.name}</span>
                 <span>Hanh dong: {s.action === 'on' ? 'Bat' : 'Tat'}</span>
@@ -201,6 +389,25 @@ export function SchedulesPage() {
                 <button onClick={e => { e.stopPropagation(); setSelectedSchedule(s); }} className="action-btn view" title="Xem"><Eye className="w-4 h-4" /></button>
                 <button onClick={e => { e.stopPropagation(); openEdit(s); }} className="action-btn edit" title="Sua"><Edit className="w-4 h-4" /></button>
                 <button onClick={e => { e.stopPropagation(); setDeleteTarget(s.id); }} className="action-btn delete" title="Xoa"><Trash2 className="w-4 h-4" /></button>
+=======
+              <div className="flex items-center gap-2 text-xs text-gray-400">
+                {field?.zoneCode && (
+                  <span className="px-1.5 py-0.5 bg-green-50 text-green-700 font-semibold rounded-full border border-green-200">
+                    {field.zoneCode}
+                  </span>
+                )}
+                <span>{field?.name || 'N/A'}</span>
+                <span>• Hành động: {s.action === 'on' ? 'Bật' : 'Tắt'}</span>
+              </div>
+              <div className="flex gap-2 mt-4 pt-3 border-t border-gray-100">
+                <button onClick={e => { e.stopPropagation(); setSelectedSchedule(s); }} className="action-btn view" title="Xem"><Eye className="w-4 h-4" /></button>
+                {canManageSchedules && (
+                  <>
+                    <button onClick={e => { e.stopPropagation(); openEdit(s); }} className="action-btn edit" title="Sửa"><Edit className="w-4 h-4" /></button>
+                    <button onClick={e => { e.stopPropagation(); setDeleteTarget(s.id); }} className="action-btn delete" title="Xóa"><Trash2 className="w-4 h-4" /></button>
+                  </>
+                )}
+>>>>>>> khanh
               </div>
             </div>
           );
@@ -211,12 +418,17 @@ export function SchedulesPage() {
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="flex items-center justify-between mb-6">
+<<<<<<< HEAD
               <h2>{editingSchedule ? 'Sua lich hen' : 'Them lich hen'}</h2>
+=======
+              <h2>{editingSchedule ? 'Sửa lịch hẹn' : 'Thêm lịch hẹn'}</h2>
+>>>>>>> khanh
               <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
             </div>
             {formError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">{formError}</div>}
             <div className="space-y-4">
               <div>
+<<<<<<< HEAD
                 <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Ten lich *</label>
                 <input value={form.name} onChange={e => { setForm(p => ({ ...p, name: e.target.value })); setFormError(''); }} className="form-input" />
               </div>
@@ -230,30 +442,85 @@ export function SchedulesPage() {
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Hanh dong *</label>
+=======
+                <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Tên lịch *</label>
+                <input value={form.name} onChange={e => { setForm(p => ({ ...p, name: e.target.value })); setFormError(''); }} className="form-input" />
+              </div>
+              
+              {/* Thêm chọn cánh đồng vào Form */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Cánh đồng *</label>
+                <CustomSelect
+                  value={form.fieldId}
+                  onChange={v => {
+                    setForm(p => ({ ...p, fieldId: v, deviceId: '' })); // Reset thiết bị khi đổi cánh đồng
+                    setFormError('');
+                  }}
+                  options={fields.map(f => ({ value: f.id, label: f.name }))}
+                />
+              </div>
+
+              {/* Danh sách thiết bị phụ thuộc vào cánh đồng đã chọn */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Thiết bị *</label>
+                <CustomSelect
+                  value={form.deviceId}
+                  onChange={v => { setForm(p => ({ ...p, deviceId: v })); setFormError(''); }}
+                  options={actuators.filter(d => d.fieldId === form.fieldId).map(d => ({ value: d.id, label: d.name }))}
+                />
+                {actuators.filter(d => d.fieldId === form.fieldId).length === 0 && form.fieldId !== '' && (
+                  <p className="text-xs text-red-500 mt-1">Cánh đồng này không có thiết bị điều khiển nào!</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Hành động *</label>
+>>>>>>> khanh
                 <CustomSelect
                   value={form.action}
                   onChange={v => setForm(p => ({ ...p, action: v as 'on' | 'off' }))}
                   options={[
+<<<<<<< HEAD
                     { value: 'on', label: 'Bat' },
                     { value: 'off', label: 'Tat' },
+=======
+                    { value: 'on', label: 'Bật' },
+                    { value: 'off', label: 'Tắt' },
+>>>>>>> khanh
                   ]}
                 />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Cron Expression *</label>
                 <input value={form.cronExpression} onChange={e => { setForm(p => ({ ...p, cronExpression: e.target.value })); setFormError(''); }} className="form-input" placeholder="0 6 * * *" />
+<<<<<<< HEAD
                 <p className="text-xs text-gray-400 mt-1">VD: "0 6 * * *" = 06:00 hang ngay</p>
               </div>
             </div>
             <div className="flex gap-3 mt-7">
               <button onClick={() => setShowModal(false)} className="btn-ghost flex-1 justify-center">Huy</button>
               <button onClick={handleSave} className="btn-primary flex-1 justify-center">Luu</button>
+=======
+                <p className="text-xs text-gray-400 mt-1">VD: "0 6 * * *" = 06:00 hàng ngày</p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-7">
+              <button onClick={() => setShowModal(false)} className="btn-ghost flex-1 justify-center">Hủy</button>
+              <button onClick={handleSave} className="btn-primary flex-1 justify-center">Lưu</button>
+>>>>>>> khanh
             </div>
           </div>
         </div>
       )}
 
+<<<<<<< HEAD
       <ConfirmDialog open={!!deleteTarget} title="Xoa lich hen" message="Ban co chac chan muon xoa lich hen nay? Thiet bi se khong tu dong bat/tat theo lich nay nua." onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} confirmLabel="Xoa" />
     </div>
   );
 }
+=======
+      <ConfirmDialog open={!!deleteTarget} title="Xóa lịch hẹn" message="Bạn có chắc chắn muốn xóa lịch hẹn này? Thiết bị sẽ không tự động bật/tắt theo lịch này nữa." onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} confirmLabel="Xóa" />
+    </div>
+  );
+}
+>>>>>>> khanh

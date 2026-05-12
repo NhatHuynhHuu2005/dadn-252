@@ -67,8 +67,14 @@ export interface User {
   username: string;
   email: string;
   fullName: string;
+<<<<<<< HEAD
   role: 'admin' | 'manager' | 'worker' | 'farmer';
   avatar?: string;
+=======
+  role: 'admin' | 'manager' | 'farmer';
+  avatar?: string;
+  password?: string;
+>>>>>>> khanh
   createdAt: string;
   token?: string;
 }
@@ -127,6 +133,10 @@ export interface Field {
   userId: string;
   createdAt: string;
   image?: string;
+<<<<<<< HEAD
+=======
+  zoneCode?: string;
+>>>>>>> khanh
   devices?: Device[];
 }
 
@@ -151,8 +161,14 @@ function normalizeDevice(device: any): Device {
 }
 
 export const fieldApi = {
+<<<<<<< HEAD
   async getAll(): Promise<Field[]> {
     const fields = await fetchApi<Field[]>('/fields');
+=======
+  async getAll(userId?: string): Promise<Field[]> {
+    const endpoint = userId ? `/fields?userId=${userId}` : '/fields';
+    const fields = await fetchApi<Field[]>(endpoint);
+>>>>>>> khanh
     return fields.map(normalizeField);
   },
 
@@ -301,6 +317,19 @@ export const alertApi = {
       method: 'PUT',
     });
   },
+<<<<<<< HEAD
+=======
+  async markAllRead(): Promise<void> {
+    await fetchApi<void>('/alerts/read/all', {
+      method: 'PUT',
+    });
+  }, 
+  async delete(id: string): Promise<void> {
+    await fetchApi<void>(`/alerts/${id}`, {
+      method: 'DELETE',
+    });
+  },
+>>>>>>> khanh
 };
 
 // ==================== SCHEDULES ====================
@@ -357,13 +386,32 @@ export interface ActionLog {
   target: string;
   details: string;
   category: 'user' | 'device';
+<<<<<<< HEAD
+=======
+  fieldId?: string;
+  deviceId?: string;
+  triggeredBy?: 'manual' | 'schedule' | 'threshold' | 'SYSTEM';
+  status?: 'success' | 'fail';
+>>>>>>> khanh
   createdAt: string;
   user?: User;
 }
 
 export const actionLogApi = {
+<<<<<<< HEAD
   async getAll(limit: number = 100): Promise<ActionLog[]> {
     return fetchApi<ActionLog[]>(`/action-logs?limit=${limit}`);
+=======
+  async getAll(limit: number = 200, filters?: { fieldId?: string; deviceId?: string; triggeredBy?: string; status?: string; from?: string; to?: string }): Promise<ActionLog[]> {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (filters?.fieldId && filters.fieldId !== 'all') params.append('fieldId', filters.fieldId);
+    if (filters?.deviceId && filters.deviceId !== 'all') params.append('deviceId', filters.deviceId);
+    if (filters?.triggeredBy && filters.triggeredBy !== 'all') params.append('triggeredBy', filters.triggeredBy);
+    if (filters?.status && filters.status !== 'all') params.append('status', filters.status);
+    if (filters?.from) params.append('from', filters.from);
+    if (filters?.to) params.append('to', filters.to);
+    return fetchApi<ActionLog[]>(`/action-logs?${params.toString()}`);
+>>>>>>> khanh
   },
 
   async getByUser(userId: string): Promise<ActionLog[]> {
@@ -441,7 +489,11 @@ export class WebSocketClient {
     }
   }
 
+<<<<<<< HEAD
   send(type: string, data: unknown): void {
+=======
+  send(type: string, data: any): void {
+>>>>>>> khanh
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type, ...data }));
     } else {
@@ -572,6 +624,51 @@ export function useWebSocketBroadcast() {
 
   return { readings, isConnected };
 }
+<<<<<<< HEAD
+=======
+// Thêm vào src/app/api/client.ts
+
+// ==================== THRESHOLDS ====================
+export interface ThresholdRule {
+  id: string;
+  deviceId: string;
+  parameter: string;
+  minValue: number;
+  maxValue: number;
+  action: string;
+  isActive: boolean;
+}
+
+export const thresholdApi = {
+  async getAll(): Promise<ThresholdRule[]> {
+    const rules = await fetchApi<any[]>('/thresholds');
+    // Normalize boolean from bit (1/0)
+    return rules.map(r => ({ ...r, isActive: !!r.isActive }));
+  },
+
+  async update(id: string, data: Partial<ThresholdRule>): Promise<ThresholdRule> {
+    return fetchApi<ThresholdRule>(`/thresholds/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async create(data: Omit<ThresholdRule, 'id' | 'isActive'>): Promise<ThresholdRule> {
+    const rule = await fetchApi<any>('/thresholds', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return { ...rule, isActive: !!rule.isActive };
+  },
+
+  async delete(id: string): Promise<void> {
+    await fetchApi<void>(`/thresholds/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+>>>>>>> khanh
 
 export default {
   userApi,
@@ -581,5 +678,13 @@ export default {
   alertApi,
   scheduleApi,
   actionLogApi,
+<<<<<<< HEAD
   WebSocketClient,
 };
+=======
+  thresholdApi,
+  WebSocketClient,
+};
+
+
+>>>>>>> khanh

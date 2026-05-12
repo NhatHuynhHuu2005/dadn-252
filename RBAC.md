@@ -198,12 +198,20 @@ const navItems = allNavItems.filter(item =>
 | **Dashboard** | ✅ | ✅ | ✅ | ✅ |
 | **Analysis/Report** | ✅ | ✅ | ❌ | ❌ |
 | **Fields - Create** | ✅ | ✅ | ❌ | ❌ |
+<<<<<<< HEAD
 | **Fields - Read** | ✅ | ✅ | ❌ | ✅ RO |
+=======
+| **Fields - Read** | ✅ | ✅ | ✅ | ✅ RO |
+>>>>>>> khanh
 | **Fields - Update** | ✅ | ✅ | ❌ | ❌ |
 | **Fields - Delete** | ✅ | ✅ | ❌ | ❌ |
 | **Devices - Create** | ✅ | ✅ | ❌ | ❌ |
 | **Devices - Read** | ✅ | ✅ | ✅ | ✅ RO |
+<<<<<<< HEAD
 | **Devices - Update** | ✅ | ✅ | ✅ | ❌ |
+=======
+| **Devices - Update** | ✅ | ✅ | ❌ | ❌ |
+>>>>>>> khanh
 | **Devices - Delete** | ✅ | ✅ | ❌ | ❌ |
 | **Alerts** | ✅ | ✅ | ✅ | ✅ |
 | **Schedules** | ❌ | ✅ | ✅ | ❌ |

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { AlertTriangle } from 'lucide-react';
+=======
+﻿import { AlertTriangle } from 'lucide-react';
+>>>>>>> khanh
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -21,7 +25,11 @@ export function ConfirmDialog({ open, title, message, onConfirm, onCancel, confi
         <h3 className="text-gray-800 mb-2">{title}</h3>
         <p className="text-gray-500 text-sm mb-6">{message}</p>
         <div className="flex gap-3">
+<<<<<<< HEAD
           <button onClick={onCancel} className="btn-ghost flex-1 justify-center">Huy</button>
+=======
+          <button onClick={onCancel} className="btn-ghost flex-1 justify-center">Hủy</button>
+>>>>>>> khanh
           <button
             onClick={onConfirm}
             className={`flex-1 justify-center ${variant === 'danger' ? 'btn-primary !bg-red-600 !shadow-red-200' : 'btn-primary !bg-amber-500 !shadow-amber-200'}`}
@@ -34,3 +42,7 @@ export function ConfirmDialog({ open, title, message, onConfirm, onCancel, confi
     </div>
   );
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> khanh

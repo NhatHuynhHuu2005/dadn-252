@@ -1,5 +1,13 @@
+<<<<<<< HEAD
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+=======
+// src/index.ts
+import 'dotenv/config'
+import express, { Request, Response } from 'express';
+import cors from 'cors';
+import './mqtt_client.js';//////////
+>>>>>>> khanh
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { initDatabase, seedDatabase } from './db/mssql-init.js';
@@ -11,6 +19,10 @@ import alertsRouter from './routes/alerts.js';
 import schedulesRouter from './routes/schedules.js';
 import actionLogsRouter from './routes/action-logs.js';
 import sensorHistoryRouter from './routes/sensor-history.js';
+<<<<<<< HEAD
+=======
+import thresholdsRouter from './routes/thresholds.js';
+>>>>>>> khanh
 
 dotenv.config();
 
@@ -50,6 +62,10 @@ app.use('/api/alerts', alertsRouter);
 app.use('/api/schedules', schedulesRouter);
 app.use('/api/action-logs', actionLogsRouter);
 app.use('/api/sensor-history', sensorHistoryRouter);
+<<<<<<< HEAD
+=======
+app.use('/api/thresholds', thresholdsRouter); 
+>>>>>>> khanh
 
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {

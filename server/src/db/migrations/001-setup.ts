@@ -28,6 +28,10 @@ export async function runMigration() {
     console.log('✅ users table ready (roles: ADMIN, MANAGER, WORKER, FARMER)');
 
     // Create fields table
+<<<<<<< HEAD
+=======
+    // Tìm đến dòng CREATE TABLE fields trong db/migrations/001-setup.ts và sửa thành:
+>>>>>>> khanh
     await pool.request().query(`
       IF NOT EXISTS(SELECT * FROM sys.tables WHERE name='fields')
       CREATE TABLE fields (
@@ -37,6 +41,10 @@ export async function runMigration() {
         area FLOAT,
         cropType NVARCHAR(50),
         status NVARCHAR(20) DEFAULT 'ACTIVE',
+<<<<<<< HEAD
+=======
+        image NVARCHAR(MAX), 
+>>>>>>> khanh
         createdAt DATETIME DEFAULT GETDATE(),
         updatedAt DATETIME DEFAULT GETDATE()
       )
@@ -68,7 +76,11 @@ export async function runMigration() {
         id NVARCHAR(50) PRIMARY KEY,
         deviceId NVARCHAR(50) NOT NULL,
         value FLOAT NOT NULL,
+<<<<<<< HEAD
         timestamp DATETIME DEFAULT GETDATE(),
+=======
+        createdAt DATETIME DEFAULT GETDATE(),
+>>>>>>> khanh
         FOREIGN KEY (deviceId) REFERENCES devices(id) ON DELETE CASCADE
       )
     `);
@@ -83,7 +95,11 @@ export async function runMigration() {
         message NVARCHAR(500),
         type NVARCHAR(20) DEFAULT 'INFO',
         isRead BIT DEFAULT 0,
+<<<<<<< HEAD
         timestamp DATETIME DEFAULT GETDATE(),
+=======
+        createdAt DATETIME DEFAULT GETDATE(),
+>>>>>>> khanh
         FOREIGN KEY (deviceId) REFERENCES devices(id) ON DELETE CASCADE
       )
     `);
@@ -95,6 +111,7 @@ export async function runMigration() {
       CREATE TABLE schedules (
         id NVARCHAR(50) PRIMARY KEY,
         fieldId NVARCHAR(50) NOT NULL,
+<<<<<<< HEAD
         name NVARCHAR(100),
         type NVARCHAR(50),
         recurrence NVARCHAR(50),
@@ -102,6 +119,17 @@ export async function runMigration() {
         createdAt DATETIME DEFAULT GETDATE(),
         FOREIGN KEY (fieldId) REFERENCES fields(id) ON DELETE CASCADE
       )
+=======
+        deviceId NVARCHAR(50) NOT NULL,
+        name NVARCHAR(100),
+        action NVARCHAR(20) DEFAULT 'on',
+        cronExpression NVARCHAR(50),
+        isActive BIT DEFAULT 1,
+        createdAt DATETIME DEFAULT GETDATE(),
+        FOREIGN KEY (fieldId) REFERENCES fields(id) ON DELETE NO ACTION,
+        FOREIGN KEY (deviceId) REFERENCES devices(id) ON DELETE CASCADE
+      );
+>>>>>>> khanh
     `);
     console.log('✅ schedules table ready');
 
@@ -115,11 +143,33 @@ export async function runMigration() {
         target NVARCHAR(50),
         targetId NVARCHAR(50),
         details NVARCHAR(MAX),
+<<<<<<< HEAD
         timestamp DATETIME DEFAULT GETDATE(),
+=======
+        createdAt DATETIME DEFAULT GETDATE(),
+>>>>>>> khanh
         FOREIGN KEY (userId) REFERENCES users(id) ON DELETE SET NULL
       )
     `);
     console.log('✅ action_logs table ready');
+<<<<<<< HEAD
+=======
+    await pool.request().query(`
+      IF NOT EXISTS(SELECT * FROM sys.tables WHERE name='threshold_rules')
+      CREATE TABLE threshold_rules (
+        id NVARCHAR(50) PRIMARY KEY,
+        deviceId NVARCHAR(50) NOT NULL,
+        parameter NVARCHAR(50),
+        minValue FLOAT,
+        maxValue FLOAT,
+        action NVARCHAR(255),
+        isActive BIT DEFAULT 1,
+        createdAt DATETIME DEFAULT GETDATE(),
+        FOREIGN KEY (deviceId) REFERENCES devices(id) ON DELETE CASCADE
+      )
+    `);
+    console.log('✅ threshold_rules table ready');
+>>>>>>> khanh
 
     console.log('\n🔧 Creating indexes...');
 
@@ -187,6 +237,7 @@ export async function runMigration() {
       AFTER INSERT
       AS
       BEGIN
+<<<<<<< HEAD
         INSERT INTO alerts (id, deviceId, message, type, isRead, timestamp)
         SELECT 
           NEWID(),
@@ -200,6 +251,24 @@ export async function runMigration() {
       END
     `);
     console.log('✅ Trigger 3: Auto-create alert on abnormal reading (>35)');
+=======
+        INSERT INTO alerts (id, deviceId, message, type, isRead, createdAt)
+        SELECT 
+          NEWID(),
+          i.deviceId,
+          N'Cảnh báo: Giá trị ' + ISNULL(d.name, 'Cảm biến') + N' (' + CAST(i.value AS NVARCHAR(20)) + N') vượt ngưỡng! Yêu cầu: ' + tr.action,
+          'CRITICAL',
+          0,
+          GETDATE()
+        FROM inserted i
+        INNER JOIN devices d ON i.deviceId = d.id
+        INNER JOIN threshold_rules tr ON i.deviceId = tr.deviceId
+        WHERE tr.isActive = 1 
+          AND (i.value < tr.minValue OR i.value > tr.maxValue)
+      END
+    `);
+    console.log('✅ Trigger 3: Auto-create alert dynamically from threshold_rules');
+>>>>>>> khanh
 
     // ==========================================
     // Bonus Trigger: Log device updates
@@ -215,7 +284,11 @@ export async function runMigration() {
       AFTER UPDATE
       AS
       BEGIN
+<<<<<<< HEAD
         INSERT INTO action_logs (id, userId, action, target, targetId, details, timestamp)
+=======
+        INSERT INTO action_logs (id, userId, action, target, targetId, details, createdAt)
+>>>>>>> khanh
         SELECT 
           NEWID(),
           'SYSTEM',

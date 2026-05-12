@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 "use client";
+=======
+﻿"use client";
+>>>>>>> khanh
 
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
@@ -724,3 +728,8 @@ export {
   SidebarTrigger,
   useSidebar,
 };
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> khanh

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 "use client";
+=======
+﻿"use client";
+>>>>>>> khanh
 
 import * as React from "react";
 
@@ -114,3 +118,8 @@ export {
   TableCell,
   TableCaption,
 };
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> khanh

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 "use client";
+=======
+﻿"use client";
+>>>>>>> khanh
 
 import * as React from "react";
 import { OTPInput, OTPInputContext } from "input-otp";
@@ -75,3 +79,8 @@ function InputOTPSeparator({ ...props }: React.ComponentProps<"div">) {
 }
 
 export { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator };
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> khanh

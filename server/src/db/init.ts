@@ -48,13 +48,21 @@ export async function initDatabase() {
       id TEXT PRIMARY KEY,
       deviceId TEXT NOT NULL,
       value REAL NOT NULL,
+<<<<<<< HEAD
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+=======
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+>>>>>>> khanh
       FOREIGN KEY (deviceId) REFERENCES devices(id)
     )`,
 
     // Create index for sensor history
     `CREATE INDEX IF NOT EXISTS idx_sensor_history_device 
+<<<<<<< HEAD
     ON sensor_history(deviceId, timestamp)`,
+=======
+    ON sensor_history(deviceId, createdAt)`,
+>>>>>>> khanh
 
     // Alerts table
     `CREATE TABLE IF NOT EXISTS alerts (
@@ -76,7 +84,11 @@ export async function initDatabase() {
       target TEXT,
       targetId TEXT,
       details TEXT,
+<<<<<<< HEAD
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+=======
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+>>>>>>> khanh
       FOREIGN KEY (userId) REFERENCES users(id)
     )`,
 

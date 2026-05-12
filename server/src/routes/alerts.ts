@@ -34,6 +34,7 @@ router.get('/device/:deviceId', async (req: Request, res: Response) => {
 });
 
 // Create alert
+<<<<<<< HEAD
 router.post('/', async (req: Request, res: Response) => {
   try {
     const { id, deviceId, message, type } = req.body;
@@ -46,17 +47,47 @@ router.post('/', async (req: Request, res: Response) => {
     const alert = await getAsync('SELECT * FROM alerts WHERE id = ?', [id]);
     res.status(201).json(alert);
   } catch (error) {
+=======
+// Create alert
+router.post('/', async (req: Request, res: Response) => {
+  try {
+    const { id, deviceId, message, type } = req.body;
+    
+    const newId = id || `alr_${Date.now()}`;
+
+    await runAsync(
+      `INSERT INTO alerts (id, deviceId, message, type, isRead)
+      VALUES (?, ?, ?, ?, 0)`,
+      [newId, deviceId, message, type || 'warning']
+    );
+
+    const alert = await getAsync('SELECT * FROM alerts WHERE id = ?', [newId]);
+    res.status(201).json(alert);
+  } catch (error) {
+    console.error(error);
+>>>>>>> khanh
     res.status(500).json({ error: 'Failed to create alert' });
   }
 });
 
 // Mark alert as read
+<<<<<<< HEAD
 router.put('/:id/read', async (req: Request, res: Response) => {
   try {
     await runAsync('UPDATE alerts SET isRead = 1, updatedAt = CURRENT_TIMESTAMP WHERE id = ?', [req.params.id]);
     const alert = await getAsync('SELECT * FROM alerts WHERE id = ?', [req.params.id]);
     res.json(alert);
   } catch (error) {
+=======
+// Mark alert as read
+router.put('/:id/read', async (req: Request, res: Response) => {
+  try {
+    await runAsync('UPDATE alerts SET isRead = 1 WHERE id = ?', [req.params.id]);
+    const alert = await getAsync('SELECT * FROM alerts WHERE id = ?', [req.params.id]);
+    res.json(alert);
+  } catch (error) {
+    console.error(error);
+>>>>>>> khanh
     res.status(500).json({ error: 'Failed to update alert' });
   }
 });
@@ -64,9 +95,16 @@ router.put('/:id/read', async (req: Request, res: Response) => {
 // Mark all alerts as read
 router.put('/read/all', async (req: Request, res: Response) => {
   try {
+<<<<<<< HEAD
     await runAsync('UPDATE alerts SET isRead = 1, updatedAt = CURRENT_TIMESTAMP WHERE isRead = 0');
     res.json({ success: true });
   } catch (error) {
+=======
+    await runAsync('UPDATE alerts SET isRead = 1 WHERE isRead = 0');
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+>>>>>>> khanh
     res.status(500).json({ error: 'Failed to update alerts' });
   }
 });
@@ -81,4 +119,17 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
+<<<<<<< HEAD
+=======
+// Get all unread alerts
+router.get('/unread', async (req: Request, res: Response) => {
+  try {
+    const alerts = await allAsync('SELECT * FROM alerts WHERE isRead = 0 ORDER BY createdAt DESC');
+    res.json(alerts);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch unread alerts' });
+  }
+});
+
+>>>>>>> khanh
 export default router;

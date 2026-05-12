@@ -1,9 +1,18 @@
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { CustomSelect } from '../components/CustomSelect';
 import { useState, useRef, useEffect } from 'react';
+<<<<<<< HEAD
 import { fieldApi, deviceApi, type Field, type Device } from '../api/client';
 import { MapPin, Plus, Edit, Trash2, Cpu, X, Eye, ChevronLeft, ImageIcon, Upload, Link, XCircle, Check } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+=======
+import { fieldApi, deviceApi, thresholdApi, type Field, type Device, type ThresholdRule } from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import { MapPin, Plus, Edit, Trash2, Cpu, X, Eye, ChevronLeft, ImageIcon, Upload, Link, XCircle, Check, QrCode, Save, Sliders } from 'lucide-react';
+import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+import { toast } from 'sonner';
+import { useRole } from '../hooks/useRole';
+>>>>>>> khanh
 
 const sampleImages = [
   { label: 'Ruong lua', url: 'https://images.unsplash.com/photo-1655903724829-37b3cd3d4ab9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800' },
@@ -15,6 +24,7 @@ const sampleImages = [
 ];
 
 export function FieldsPage() {
+<<<<<<< HEAD
   const [fieldList, setFieldList] = useState<Field[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -28,16 +38,106 @@ export function FieldsPage() {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+=======
+  const { user } = useAuth();
+  const { canManageFields, canManageThresholds, isManager } = useRole();
+
+  const [fieldList, setFieldList] = useState<Field[]>([]);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [rules, setRules] = useState<ThresholdRule[]>([]);
+  
+  const [showModal, setShowModal] = useState(false);
+  const [editingField, setEditingField] = useState<Field | null>(null);
+  const [form, setForm] = useState({ name: '', location: '', area: '', cropType: '', status: 'active' as Field['status'], image: '', zoneCode: '' });
+  const [formError, setFormError] = useState('');
+  const [selectedField, setSelectedField] = useState<Field | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [qrField, setQrField] = useState<Field | null>(null);
+  const [imageInputMode, setImageInputMode] = useState<'gallery' | 'url' | 'upload'>('gallery');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filterZone, setFilterZone] = useState('all');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [thresholdTemp, setThresholdTemp] = useState<{ min: number; max: number }>({ min: 0, max: 100 });
+  const [thresholdHumid, setThresholdHumid] = useState<{ min: number; max: number }>({ min: 0, max: 100 });
+  const [savingThresholds, setSavingThresholds] = useState(false);
+
+  useEffect(() => {
+    if (selectedField) {
+      const fieldDevices = devices.filter(d => d.fieldId === selectedField.id);
+      const tempDevice = fieldDevices.find(d => d.type?.toUpperCase() === 'TEMPERATURE');
+      const humidDevice = fieldDevices.find(d => d.type?.toUpperCase() === 'HUMIDITY');
+      
+      if (tempDevice) {
+        const rule = rules.find(r => r.deviceId === tempDevice.id);
+        if (rule) setThresholdTemp({ min: rule.minValue, max: rule.maxValue });
+        else setThresholdTemp({ min: 20, max: 35 });
+      }
+      if (humidDevice) {
+        const rule = rules.find(r => r.deviceId === humidDevice.id);
+        if (rule) setThresholdHumid({ min: rule.minValue, max: rule.maxValue });
+        else setThresholdHumid({ min: 40, max: 80 });
+      }
+    }
+  }, [selectedField, devices, rules]);
+
+  const handleSaveThresholds = async () => {
+    if (!selectedField) return;
+    setSavingThresholds(true);
+    const fieldDevices = devices.filter(d => d.fieldId === selectedField.id);
+    const tempDevices = fieldDevices.filter(d => d.type?.toUpperCase() === 'TEMPERATURE');
+    const humidDevices = fieldDevices.filter(d => d.type?.toUpperCase() === 'HUMIDITY');
+    
+    try {
+      const savePromises = [];
+      for (const d of tempDevices) {
+        const existing = rules.find(r => r.deviceId === d.id);
+        if (existing) savePromises.push(thresholdApi.update(existing.id, { minValue: thresholdTemp.min, maxValue: thresholdTemp.max }));
+        else savePromises.push(thresholdApi.create({ deviceId: d.id, parameter: 'temperature', minValue: thresholdTemp.min, maxValue: thresholdTemp.max, action: 'Bật bơm/quạt tương ứng' }));
+      }
+      for (const d of humidDevices) {
+        const existing = rules.find(r => r.deviceId === d.id);
+        if (existing) savePromises.push(thresholdApi.update(existing.id, { minValue: thresholdHumid.min, maxValue: thresholdHumid.max }));
+        else savePromises.push(thresholdApi.create({ deviceId: d.id, parameter: 'humidity', minValue: thresholdHumid.min, maxValue: thresholdHumid.max, action: 'Bật bơm/quạt tương ứng' }));
+      }
+      
+      await Promise.all(savePromises);
+      const newRules = await thresholdApi.getAll().catch(() => []);
+      setRules(newRules);
+      toast.success('Đã lưu ngưỡng cảnh báo thành công!');
+    } catch (e) {
+      console.error(e);
+      toast.error('Có lỗi xảy ra khi lưu ngưỡng cảnh báo!');
+    } finally {
+      setSavingThresholds(false);
+    }
+  };
+
+>>>>>>> khanh
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
+<<<<<<< HEAD
         const [fieldsData, devicesData] = await Promise.all([
           fieldApi.getAll(),
           deviceApi.getAll(),
         ]);
         setFieldList(fieldsData);
         setDevices(devicesData);
+=======
+        const filterUserId = isManager ? user?.id : undefined;
+        
+        const [fieldsData, devicesData, rulesData] = await Promise.all([
+          fieldApi.getAll(filterUserId),
+          deviceApi.getAll(),
+          thresholdApi.getAll().catch(() => [])
+        ]);
+        setFieldList(fieldsData);
+        setDevices(devicesData);
+        setRules(rulesData);
+>>>>>>> khanh
       } catch (err) {
         console.error('FieldsPage load error', err);
         setError(err instanceof Error ? err.message : 'Failed to load');
@@ -49,21 +149,34 @@ export function FieldsPage() {
   }, []);
 
   const openAdd = () => {
+<<<<<<< HEAD
     setEditingField(null);
     setForm({ name: '', location: '', area: '', cropType: '', status: 'active', image: '' });
+=======
+    if (!canManageFields) return;
+    setEditingField(null);
+    setForm({ name: '', location: '', area: '', cropType: '', status: 'active', image: '', zoneCode: '' });
+>>>>>>> khanh
     setFormError('');
     setImageInputMode('gallery');
     setShowModal(true);
   };
 
   const openEdit = (f: Field) => {
+<<<<<<< HEAD
     setEditingField(f);
     setForm({ name: f.name, location: f.location, area: String(f.area), cropType: f.cropType, status: f.status, image: f.image || '' });
+=======
+    if (!canManageFields) return;
+    setEditingField(f);
+    setForm({ name: f.name, location: f.location, area: String(f.area), cropType: f.cropType, status: f.status, image: f.image || '', zoneCode: f.zoneCode || '' });
+>>>>>>> khanh
     setFormError('');
     setImageInputMode(f.image ? 'url' : 'gallery');
     setShowModal(true);
   };
 
+<<<<<<< HEAD
   const handleSave = () => {
     if (!form.name || !form.location || !form.cropType) {
       setFormError('Vui long dien day du thong tin bat buoc (Ten, Vi tri, Loai cay trong)');
@@ -80,6 +193,37 @@ export function FieldsPage() {
       setFieldList(prev => [...prev, newField]);
     }
     setShowModal(false);
+=======
+  const handleSave = async () => {
+    if (!canManageFields) return;
+    if (!form.name || !form.location || !form.cropType) {
+      setFormError('Vui lòng điền đầy đủ thông tin bắt buộc');
+      return;
+    }
+  
+    try {
+      const fieldData = {
+        ...form,
+        userId: user?.id || 'system',
+        area: parseFloat(form.area) || 0,
+        image: form.image || undefined,
+        zoneCode: form.zoneCode || undefined,
+      };
+  
+      if (editingField) {
+        const updated = await fieldApi.update(editingField.id, fieldData);
+        setFieldList(prev => prev.map(f => f.id === editingField.id ? updated : f));
+        if (selectedField?.id === editingField.id) setSelectedField(updated);
+      } else {
+        // Gọi API tạo cánh đồng mới
+        const created = await fieldApi.create(fieldData);
+        setFieldList(prev => [created, ...prev]);
+      }
+      setShowModal(false);
+    } catch (err) {
+      setFormError('Lỗi kết nối server khi lưu cánh đồng');
+    }
+>>>>>>> khanh
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -92,24 +236,50 @@ export function FieldsPage() {
     reader.readAsDataURL(file);
   };
 
+<<<<<<< HEAD
   const confirmDelete = () => {
     if (deleteTarget) {
       setFieldList(prev => prev.filter(f => f.id !== deleteTarget));
       setDeleteTarget(null);
       if (selectedField?.id === deleteTarget) setSelectedField(null);
+=======
+  const confirmDelete = async () => {
+    if (!canManageFields) return;
+    if (deleteTarget) {
+      try {
+        // Gọi API xóa cánh đồng dưới Database
+        await fieldApi.delete(deleteTarget);
+        
+        // Sau khi xóa DB thành công, mới cập nhật lại giao diện
+        setFieldList(prev => prev.filter(f => f.id !== deleteTarget));
+        setDeleteTarget(null);
+        if (selectedField?.id === deleteTarget) setSelectedField(null);
+      } catch (err) {
+        console.error("Lỗi khi xóa cánh đồng:", err);
+        toast.error("Không thể xóa cánh đồng này!");
+      }
+>>>>>>> khanh
     }
   };
 
   const statusBadge = (status: string) => {
     const cls: Record<string, string> = { active: 'active', inactive: 'inactive', harvesting: 'harvesting' };
+<<<<<<< HEAD
     const labels: Record<string, string> = { active: 'Hoat dong', inactive: 'Tam dung', harvesting: 'Thu hoach' };
+=======
+    const labels: Record<string, string> = { active: 'Hoạt động', inactive: 'Tạm dừng', harvesting: 'Thu hoạch' };
+>>>>>>> khanh
     return <span className={`status-badge ${cls[status]}`}>{labels[status]}</span>;
   };
 
   // --- Image section for modal ---
   const renderImageSection = () => (
     <div>
+<<<<<<< HEAD
       <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Hinh anh (tuy chon)</label>
+=======
+      <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Hình ảnh (tùy chọn)</label>
+>>>>>>> khanh
 
       {/* Current image preview */}
       {form.image && (
@@ -128,9 +298,15 @@ export function FieldsPage() {
       {/* Mode tabs */}
       <div className="flex gap-1 mb-3 bg-gray-100 p-1 rounded-xl">
         {([
+<<<<<<< HEAD
           { mode: 'gallery' as const, icon: ImageIcon, label: 'Mau' },
           { mode: 'url' as const, icon: Link, label: 'URL' },
           { mode: 'upload' as const, icon: Upload, label: 'Tai len' },
+=======
+          { mode: 'gallery' as const, icon: ImageIcon, label: 'Màu' },
+          { mode: 'url' as const, icon: Link, label: 'URL' },
+          { mode: 'upload' as const, icon: Upload, label: 'Tải lên' },
+>>>>>>> khanh
         ]).map(({ mode, icon: Icon, label }) => (
           <button
             key={mode}
@@ -193,7 +369,11 @@ export function FieldsPage() {
             className="w-full py-6 border-2 border-dashed border-gray-300 rounded-xl hover:border-green-400 hover:bg-green-50/50 transition-all flex flex-col items-center gap-2 text-gray-500"
           >
             <Upload className="w-6 h-6" />
+<<<<<<< HEAD
             <span className="text-sm">Bam de chon hinh anh</span>
+=======
+            <span className="text-sm">Bấm để chọn hình ảnh</span>
+>>>>>>> khanh
             <span className="text-[10px] text-gray-400">JPG, PNG, WEBP</span>
           </button>
         </div>
@@ -208,49 +388,90 @@ export function FieldsPage() {
       <div className="modal-overlay">
         <div className="modal-content" style={{ maxWidth: '520px' }}>
           <div className="flex items-center justify-between mb-6">
+<<<<<<< HEAD
             <h2>{editingField ? 'Sua canh dong' : 'Them canh dong'}</h2>
+=======
+            <h2>{editingField ? 'Sửa cánh đồng' : 'Thêm cánh đồng'}</h2>
+>>>>>>> khanh
             <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
           </div>
           {formError && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">{formError}</div>
           )}
           <div className="space-y-4">
+<<<<<<< HEAD
             {([['name', 'Ten *'], ['location', 'Vi tri *'], ['area', 'Dien tich (ha)'], ['cropType', 'Loai cay trong *']] as const).map(([key, label]) => (
+=======
+            {([['name', 'Tên *'], ['location', 'Vị trí *'], ['area', 'Diện tích (ha)'], ['cropType', 'Loại cây trồng *']] as const).map(([key, label]) => (
+>>>>>>> khanh
               <div key={key}>
                 <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">{label}</label>
                 <input value={(form as any)[key]} onChange={e => { setForm(prev => ({ ...prev, [key]: e.target.value })); setFormError(''); }} className="form-input" />
               </div>
             ))}
             <div>
+<<<<<<< HEAD
               <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Trang thai</label>
+=======
+              <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Mã khu vực (VD: Khu A)</label>
+              <input
+                value={form.zoneCode}
+                onChange={e => setForm(prev => ({ ...prev, zoneCode: e.target.value }))}
+                className="form-input"
+                placeholder="Khu A, Khu B, Khu C..."
+              />
+              <p className="text-xs text-gray-400 mt-1">Phân loại cánh đồng theo khu vực địa lý</p>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Trạng thái</label>
+>>>>>>> khanh
               <CustomSelect
                 value={form.status}
                 onChange={v => setForm(prev => ({ ...prev, status: v as Field['status'] }))}
                 options={[
+<<<<<<< HEAD
                   { value: 'active', label: 'Hoat dong' },
                   { value: 'inactive', label: 'Tam dung' },
                   { value: 'harvesting', label: 'Thu hoach' },
+=======
+                  { value: 'active', label: 'Hoạt động' },
+                  { value: 'inactive', label: 'Tạm dừng' },
+                  { value: 'harvesting', label: 'Thu hoạch' },
+>>>>>>> khanh
                 ]}
               />
             </div>
             {renderImageSection()}
           </div>
           <div className="flex gap-3 mt-7">
+<<<<<<< HEAD
             <button onClick={() => setShowModal(false)} className="btn-ghost flex-1 justify-center">Huy</button>
             <button onClick={handleSave} className="btn-primary flex-1 justify-center">Luu</button>
+=======
+            <button onClick={() => setShowModal(false)} className="btn-ghost flex-1 justify-center">Hủy</button>
+            <button onClick={handleSave} className="btn-primary flex-1 justify-center">Lưu</button>
+>>>>>>> khanh
           </div>
         </div>
       </div>
     );
   };
 
+<<<<<<< HEAD
   // Detail view
+=======
+  // Detảil view
+>>>>>>> khanh
   if (selectedField) {
     const fieldDevices = devices.filter(d => d.fieldId === selectedField.id);
     return (
       <div className="space-y-6">
         <button onClick={() => setSelectedField(null)} className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 transition-colors">
+<<<<<<< HEAD
           <ChevronLeft className="w-4 h-4" /> Quay lai danh sach
+=======
+          <ChevronLeft className="w-4 h-4" /> Quay lại danh sách
+>>>>>>> khanh
         </button>
 
         <div className="farm-card-static overflow-hidden">
@@ -260,6 +481,7 @@ export function FieldsPage() {
               <>
                 <ImageWithFallback src={selectedField.image} alt={selectedField.name} className="w-full h-full object-cover" />
                 <div className="absolute bottom-4 left-4 flex gap-2">
+<<<<<<< HEAD
                   <button
                     onClick={() => openEdit(selectedField)}
                     className="px-3 py-1.5 bg-white/90 backdrop-blur rounded-lg text-xs text-gray-700 hover:bg-white shadow flex items-center gap-1.5 transition-all"
@@ -276,11 +498,34 @@ export function FieldsPage() {
                   >
                     <Trash2 className="w-3 h-3" /> Xoa anh
                   </button>
+=======
+                  {canManageFields && (
+                    <>
+                      <button
+                        onClick={() => openEdit(selectedField)}
+                        className="px-3 py-1.5 bg-white/90 backdrop-blur rounded-lg text-xs text-gray-700 hover:bg-white shadow flex items-center gap-1.5 transition-all"
+                      >
+                        <Edit className="w-3 h-3" /> Doi anh
+                      </button>
+                      <button
+                        onClick={() => {
+                          const updated = { ...selectedField, image: undefined };
+                          setFieldList(prev => prev.map(f => f.id === selectedField.id ? updated : f));
+                          setSelectedField(updated);
+                        }}
+                        className="px-3 py-1.5 bg-white/90 backdrop-blur rounded-lg text-xs text-red-600 hover:bg-red-50 shadow flex items-center gap-1.5 transition-all"
+                      >
+                        <Trash2 className="w-3 h-3" /> Xóa anh
+                      </button>
+                    </>
+                  )}
+>>>>>>> khanh
                 </div>
               </>
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center gap-3">
                 <ImageIcon className="w-10 h-10 text-gray-300" />
+<<<<<<< HEAD
                 <button
                   onClick={() => openEdit(selectedField)}
                   className="btn-outline"
@@ -288,6 +533,17 @@ export function FieldsPage() {
                 >
                   <ImageIcon className="w-4 h-4" /> Them hinh anh
                 </button>
+=======
+                {canManageFields && (
+                  <button
+                    onClick={() => openEdit(selectedField)}
+                    className="btn-outline"
+                    style={{ padding: '8px 20px' }}
+                  >
+                    <ImageIcon className="w-4 h-4" /> Thêm hình ảnh
+                  </button>
+                )}
+>>>>>>> khanh
               </div>
             )}
             <div className="absolute top-4 right-4">{statusBadge(selectedField.status)}</div>
@@ -297,10 +553,17 @@ export function FieldsPage() {
             <h1 className="text-gray-800 mb-2">{selectedField.name}</h1>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
               {[
+<<<<<<< HEAD
                 { l: 'Vi tri', v: selectedField.location, icon: <MapPin className="w-3.5 h-3.5 text-gray-400" /> },
                 { l: 'Dien tich', v: `${selectedField.area} ha` },
                 { l: 'Loai cay trong', v: selectedField.cropType },
                 { l: 'Ngay tao', v: new Date(selectedField.createdAt).toLocaleDateString('vi-VN') },
+=======
+                { l: 'Vị trí', v: selectedField.location, icon: <MapPin className="w-3.5 h-3.5 text-gray-400" /> },
+                { l: 'Diện tích', v: `${selectedField.area} ha` },
+                { l: 'Loại cây trồng', v: selectedField.cropType },
+                { l: 'Ngày tạo', v: new Date(selectedField.createdAt).toLocaleDateString('vi-VN') },
+>>>>>>> khanh
               ].map(item => (
                 <div key={item.l} className="bg-[#f8faf8] rounded-xl p-4 border border-green-50">
                   <p className="text-[11px] text-gray-400 uppercase tracking-wider">{item.l}</p>
@@ -310,7 +573,11 @@ export function FieldsPage() {
             </div>
 
             <div className="mt-6">
+<<<<<<< HEAD
               <h3 className="text-gray-800 mb-3">Thiet bi ({fieldDevices.length})</h3>
+=======
+              <h3 className="text-gray-800 mb-3">Thiết bị ({fieldDevices.length})</h3>
+>>>>>>> khanh
               {fieldDevices.length === 0 ? (
                 <p className="text-sm text-gray-400">Chua co thiet bi nao trong canh dong nay</p>
               ) : (
@@ -327,6 +594,7 @@ export function FieldsPage() {
                 </div>
               )}
             </div>
+<<<<<<< HEAD
 
             <div className="flex gap-3 mt-6 pt-5 border-t border-gray-100">
               <button onClick={() => openEdit(selectedField)} className="action-btn edit" style={{ width: 'auto', borderRadius: '50px', padding: '8px 20px', gap: '6px' }}>
@@ -336,11 +604,73 @@ export function FieldsPage() {
                 <Trash2 className="w-4 h-4" /> Xoa
               </button>
             </div>
+=======
+            {canManageThresholds && (fieldDevices.some(d => d.type?.toUpperCase() === 'TEMPERATURE') || fieldDevices.some(d => d.type?.toUpperCase() === 'HUMIDITY')) && (
+              <div className="mt-6 pt-6 border-t border-gray-100">
+                <div className="flex items-center gap-2 mb-4">
+                  <Sliders className="w-5 h-5 text-gray-400" />
+                  <h3 className="text-gray-800">Ngưỡng cảnh báo môi trường</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#f8faf8] p-5 rounded-xl border border-green-50">
+                  {fieldDevices.some(d => d.type?.toUpperCase() === 'TEMPERATURE') && (
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-gray-700 flex items-center justify-between">
+                        <span>Nhiệt độ (°C)</span>
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <label className="text-xs text-gray-500 mb-1 block">Tối thiểu</label>
+                          <input type="number" className="form-input text-sm" value={thresholdTemp.min} onChange={e => setThresholdTemp(p => ({ ...p, min: Number(e.target.value) }))} />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-xs text-gray-500 mb-1 block">Tối đa</label>
+                          <input type="number" className="form-input text-sm" value={thresholdTemp.max} onChange={e => setThresholdTemp(p => ({ ...p, max: Number(e.target.value) }))} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {fieldDevices.some(d => d.type?.toUpperCase() === 'HUMIDITY') && (
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-gray-700 flex items-center justify-between">
+                        <span>Độ ẩm (%)</span>
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <label className="text-xs text-gray-500 mb-1 block">Tối thiểu</label>
+                          <input type="number" className="form-input text-sm" value={thresholdHumid.min} onChange={e => setThresholdHumid(p => ({ ...p, min: Number(e.target.value) }))} />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-xs text-gray-500 mb-1 block">Tối đa</label>
+                          <input type="number" className="form-input text-sm" value={thresholdHumid.max} onChange={e => setThresholdHumid(p => ({ ...p, max: Number(e.target.value) }))} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <button onClick={handleSaveThresholds} disabled={savingThresholds} className="btn-primary" style={{ padding: '8px 20px', fontSize: '13px' }}>
+                    <Save className="w-4 h-4" /> {savingThresholds ? 'Đang lưu...' : 'Lưu ngưỡng cảnh báo'}
+                  </button>
+                </div>
+              </div>
+            )}
+            {canManageFields && (
+              <div className="flex gap-3 mt-6 pt-5 border-t border-gray-100">
+                <button onClick={() => openEdit(selectedField)} className="action-btn edit" style={{ width: 'auto', borderRadius: '50px', padding: '8px 20px', gap: '6px' }}>
+                  <Edit className="w-4 h-4" /> Sửa
+                </button>
+                <button onClick={() => setDeleteTarget(selectedField.id)} className="action-btn delete" style={{ width: 'auto', borderRadius: '50px', padding: '8px 20px', gap: '6px' }}>
+                  <Trash2 className="w-4 h-4" /> Xóa
+                </button>
+              </div>
+            )}
+>>>>>>> khanh
           </div>
         </div>
 
         <ConfirmDialog
           open={!!deleteTarget}
+<<<<<<< HEAD
           title="Xoa canh dong"
           message="Ban co chac chan muon xoa canh dong nay? Tat ca thiet bi lien quan cung se bi anh huong."
           onConfirm={confirmDelete}
@@ -348,6 +678,16 @@ export function FieldsPage() {
           confirmLabel="Xoa"
         />
 
+=======
+          title="Xóa canh dong"
+          message="Ban co chắc chắn muon xoa canh dong nay? Tat ca thiet bi lien quan cung se bi ảnh hưởng."
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteTarget(null)}
+          confirmLabel="Xóa"
+        />
+
+
+>>>>>>> khanh
         {renderModal()}
       </div>
     );
@@ -357,6 +697,7 @@ export function FieldsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="page-header" style={{ marginBottom: 0 }}>
+<<<<<<< HEAD
           <h1>Canh dong</h1>
           <p>Quan ly cac canh dong va khu vuc canh tac</p>
         </div>
@@ -367,6 +708,44 @@ export function FieldsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {fieldList.map(f => {
+=======
+          <h1>Cánh đồng</h1>
+          <p>Quản lý các cánh đồng và khu vực canh tác</p>
+        </div>
+        {canManageFields && (
+          <button onClick={openAdd} className="btn-primary">
+            <Plus className="w-4 h-4" /> Thêm cánh đồng
+          </button>
+        )}
+      </div>
+
+      {/* Zone filter */}
+      {(() => {
+        const zones = [...new Set(fieldList.map(f => f.zoneCode).filter(Boolean))] as string[];
+        return zones.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setFilterZone('all')}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filterZone === 'all' ? 'bg-green-600 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            >
+              Tất cả
+            </button>
+            {zones.map(z => (
+              <button
+                key={z}
+                onClick={() => setFilterZone(z)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filterZone === z ? 'bg-green-600 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                {z}
+              </button>
+            ))}
+          </div>
+        ) : null;
+      })()}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {fieldList.filter(f => filterZone === 'all' || f.zoneCode === filterZone).map(f => {
+>>>>>>> khanh
           const fieldDevices = devices.filter(d => d.fieldId === f.id);
           return (
             <div key={f.id} className="farm-card overflow-hidden">
@@ -378,7 +757,18 @@ export function FieldsPage() {
                     <ImageIcon className="w-8 h-8 text-gray-300" />
                   </div>
                 )}
+<<<<<<< HEAD
                 <div className="absolute top-3 right-3">{statusBadge(f.status)}</div>
+=======
+                <div className="absolute top-3 right-3 flex items-center gap-1.5 flex-wrap">
+                  {f.zoneCode && (
+                    <span className="px-2 py-0.5 bg-green-600/90 text-white text-[10px] font-bold rounded-full backdrop-blur">
+                      {f.zoneCode}
+                    </span>
+                  )}
+                  {statusBadge(f.status)}
+                </div>
+>>>>>>> khanh
               </div>
               <div className="p-5">
                 <h3 className="text-gray-800 cursor-pointer hover:text-green-600 transition-colors" onClick={() => setSelectedField(f)}>{f.name}</h3>
@@ -392,8 +782,19 @@ export function FieldsPage() {
                 </div>
                 <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
                   <button onClick={() => setSelectedField(f)} className="action-btn view" title="Xem"><Eye className="w-4 h-4" /></button>
+<<<<<<< HEAD
                   <button onClick={() => openEdit(f)} className="action-btn edit" title="Sua"><Edit className="w-4 h-4" /></button>
                   <button onClick={() => setDeleteTarget(f.id)} className="action-btn delete" title="Xoa"><Trash2 className="w-4 h-4" /></button>
+=======
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setQrField(f); }} 
+                    className="action-btn flex items-center justify-center" 
+                    style={{ color: '#2563eb', backgroundColor: '#eff6ff', padding: '8px', borderRadius: '12px' }} 
+                    title="Mã QR"
+                  >
+                    <QrCode className="w-4 h-4" />
+                  </button>
+>>>>>>> khanh
                 </div>
               </div>
             </div>
@@ -403,6 +804,7 @@ export function FieldsPage() {
 
       <ConfirmDialog
         open={!!deleteTarget}
+<<<<<<< HEAD
         title="Xoa canh dong"
         message="Ban co chac chan muon xoa canh dong nay? Hanh dong nay khong the hoan tac."
         onConfirm={confirmDelete}
@@ -414,3 +816,38 @@ export function FieldsPage() {
     </div>
   );
 }
+=======
+        title="Xóa canh dong"
+        message="Ban co chắc chắn muon xoa canh dong nay? Hanh dong nay khong the hoàn tác."
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+        confirmLabel="Xóa"
+      />
+
+      {renderModal()}
+
+      {qrField && (
+        <div className="modal-overlay">
+          <div className="modal-content text-center" style={{ maxWidth: '360px' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg">Mã QR Định Danh</h2>
+              <button onClick={() => setQrField(null)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <div className="bg-white p-4 rounded-xl inline-block shadow-sm border mb-4">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({ id: qrField.id, name: qrField.name, zone: qrField.zoneCode, location: qrField.location }))}`} 
+                alt="QR Code" 
+                className="w-48 h-48 mx-auto"
+              />
+            </div>
+            <h3 className="font-bold text-gray-800">{qrField.name}</h3>
+            <p className="text-sm text-gray-500 mb-2">{qrField.zoneCode ? `Phân vùng: ${qrField.zoneCode}` : 'Chưa phân vùng'} • {qrField.location}</p>
+            <p className="text-xs text-gray-400 mt-2">Quét mã này để xem hoặc chia sẻ thông tin chi tiết về khu vực canh tác.</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+>>>>>>> khanh

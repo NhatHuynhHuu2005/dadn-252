@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /**
+=======
+﻿/**
+>>>>>>> khanh
  * Type definitions for Smart Farm Dashboard
  * 
  * All data is fetched from the backend API (MSSQL database)
@@ -84,4 +88,9 @@ export interface ActionLog {
   details: string;
   category: 'user' | 'device';
   createdAt: string;
+<<<<<<< HEAD
 }
+=======
+}
+
+>>>>>>> khanh

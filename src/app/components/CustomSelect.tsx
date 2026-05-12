@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { useState, useRef, useEffect } from 'react';
+=======
+﻿import { useState, useRef, useEffect } from 'react';
+>>>>>>> khanh
 import { ChevronDown, Check } from 'lucide-react';
 
 interface Option {
@@ -24,7 +28,11 @@ export function CustomSelect({ value, onChange, options, placeholder, className 
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
+<<<<<<< HEAD
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+=======
+      if (ref.current && !ref.current.contảins(e.target as Node)) setOpen(false);
+>>>>>>> khanh
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -88,3 +96,7 @@ export function CustomSelect({ value, onChange, options, placeholder, className 
     </div>
   );
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> khanh

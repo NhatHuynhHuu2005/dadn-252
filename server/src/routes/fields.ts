@@ -6,7 +6,22 @@ const router = Router();
 // Get all fields
 router.get('/', async (req: Request, res: Response) => {
   try {
+<<<<<<< HEAD
     const fields = await allAsync('SELECT * FROM fields ORDER BY createdAt DESC');
+=======
+    const { userId } = req.query;
+    let query = 'SELECT * FROM fields';
+    let params: any[] = [];
+
+    if (userId) {
+      query += ' WHERE userId = ?';
+      params.push(userId);
+    }
+    
+    query += ' ORDER BY createdAt DESC';
+    
+    const fields = await allAsync(query, params);
+>>>>>>> khanh
     res.json(fields);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch fields' });
@@ -31,6 +46,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 // Create field
 router.post('/', async (req: Request, res: Response) => {
   try {
+<<<<<<< HEAD
     const { id, name, location, area, cropType, status } = req.body;
     await runAsync(
       `INSERT INTO fields (id, name, location, area, cropType, status)
@@ -39,6 +55,18 @@ router.post('/', async (req: Request, res: Response) => {
     );
 
     const field = await getAsync('SELECT * FROM fields WHERE id = ?', [id]);
+=======
+    const { id, name, location, area, cropType, status, image, zoneCode } = req.body;
+    const newId = id || `fld_${Date.now()}`;
+
+    await runAsync(
+      `INSERT INTO fields (id, name, location, area, cropType, status, image, zoneCode)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [newId, name, location, area, cropType, status || 'ACTIVE', image || null, zoneCode || null]
+    );
+
+    const field = await getAsync('SELECT * FROM fields WHERE id = ?', [newId]);
+>>>>>>> khanh
     res.status(201).json(field);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create field' });
@@ -48,11 +76,19 @@ router.post('/', async (req: Request, res: Response) => {
 // Update field
 router.put('/:id', async (req: Request, res: Response) => {
   try {
+<<<<<<< HEAD
     const { name, location, area, cropType, status } = req.body;
     await runAsync(
       `UPDATE fields SET name = ?, location = ?, area = ?, cropType = ?, status = ?, updatedAt = CURRENT_TIMESTAMP
       WHERE id = ?`,
       [name, location, area, cropType, status, req.params.id]
+=======
+    const { name, location, area, cropType, status, image, zoneCode } = req.body;
+    await runAsync(
+      `UPDATE fields SET name = ?, location = ?, area = ?, cropType = ?, status = ?, image = ?, zoneCode = ?, updatedAt = CURRENT_TIMESTAMP
+      WHERE id = ?`,
+      [name, location, area, cropType, status, image || null, zoneCode || null, req.params.id]
+>>>>>>> khanh
     );
 
     const field = await getAsync('SELECT * FROM fields WHERE id = ?', [req.params.id]);
