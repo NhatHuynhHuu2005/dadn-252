@@ -20,8 +20,6 @@ export function SchedulesPage() {
   const [loading, setLoading] = useState(true);
   const [filterFieldId, setFilterFieldId] = useState('all');
 
-  const { canManageSchedules } = useRole();
-
   useEffect(() => {
     const loadData = async () => {
       try {

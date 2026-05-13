@@ -13,7 +13,7 @@ export async function runMigration003() {
         WHERE TABLE_NAME = 'fields' AND COLUMN_NAME = 'userId'
       )
       BEGIN
-        ALTER TABLE fields ADD userId VARCHAR(50);
+        ALTER TABLE fields ADD userId NVARCHAR(50);
         
         -- Add foreign key constraint
         ALTER TABLE fields 
