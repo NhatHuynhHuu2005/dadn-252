@@ -1,9 +1,10 @@
-﻿import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAuth } from '../context/AuthContext';
 import { CustomSelect } from '../components/CustomSelect';
 import { useState, useEffect } from 'react';
 import { userApi, type User } from '../api/client';
 import { Users, Plus, Edit, Trash2, X, Shield, UserIcon } from 'lucide-react';
+import { getRoleBadgeConfig } from '../hooks/useRole';
 
 export function UserManagementPage() {
   const { user: currentUser } = useAuth();
@@ -32,7 +33,7 @@ export function UserManagementPage() {
   }, []);
 
 
-  if (currentUser?.role?.toUpperCase() !== 'ADMIN') {
+  if (currentUser?.role?.toLowerCase() !== 'admin') {
     return (
       <div className="empty-state" style={{ paddingTop: '100px' }}>
         <Shield className="w-14 h-14" />
@@ -238,7 +239,6 @@ export function UserManagementPage() {
                   options={[
                     { value: 'admin', label: 'Quản trị viên' },
                     { value: 'manager', label: 'Quản lý' },
-                    { value: 'worker', label: 'Thợ công' },
                     { value: 'farmer', label: 'Nông dân' },
                   ]}
                 />

@@ -7,7 +7,7 @@ const router = Router();
 router.get('/', async (req: Request, res: Response) => {
   try {
     const users = await allAsync('SELECT id, username, fullName, email, role, createdAt FROM users');
-    res.json(users);
+    res.json(users.map((u: any) => ({ ...u, role: (u.role || 'farmer').toLowerCase() })));
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch users' });
   }
@@ -18,7 +18,7 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const user = await getAsync('SELECT id, username, fullName, email, role FROM users WHERE id = ?', [req.params.id]);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
+    res.json({ ...user, role: ((user as any).role || 'farmer').toLowerCase() });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch user' });
   }
@@ -43,6 +43,7 @@ router.post('/login', async (req: Request, res: Response) => {
 
     res.json({
       ...userWithoutPassword,
+      role: ((userWithoutPassword as any).role || 'farmer').toLowerCase(),
       token,
     });
   } catch (error) {
@@ -62,6 +63,9 @@ router.post('/', async (req: Request, res: Response) => {
     const newId = id || `u${Date.now()}`;
     
     const upperRole = role ? role.toUpperCase() : 'FARMER';
+    if (!['ADMIN', 'MANAGER', 'FARMER'].includes(upperRole)) {
+      return res.status(400).json({ error: 'Vai trò không hợp lệ. Chỉ chấp nhận: admin, manager, farmer' });
+    }
 
     await runAsync(
       `INSERT INTO users (id, username, password, fullName, email, role)
@@ -69,8 +73,7 @@ router.post('/', async (req: Request, res: Response) => {
       [newId, username, password, fullName, email, upperRole]
     );
 
-    // Trả về dữ liệu vừa tạo
-    res.status(201).json({ id: newId, username, fullName, email, role: upperRole });
+    res.status(201).json({ id: newId, username, fullName, email, role: upperRole.toLowerCase() });
   } catch (error: any) {
     console.error("Create user error:", error);
     if (error.message?.includes('UNIQUE') || error.message?.includes('Violation of UNIQUE KEY constraint')) {
@@ -85,6 +88,9 @@ router.put('/:id', async (req: Request, res: Response) => {
   try {
     const { username, fullName, email, role, password } = req.body;
     const upperRole = role ? role.toUpperCase() : 'FARMER';
+    if (!['ADMIN', 'MANAGER', 'FARMER'].includes(upperRole)) {
+      return res.status(400).json({ error: 'Vai trò không hợp lệ' });
+    }
 
     if (password) {
       await runAsync(
@@ -99,7 +105,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 
     const user = await getAsync('SELECT id, username, fullName, email, role FROM users WHERE id = ?', [req.params.id]);
-    res.json(user);
+    res.json({ ...user, role: ((user as any).role || 'farmer').toLowerCase() });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update user' });
   }

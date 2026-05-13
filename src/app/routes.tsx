@@ -2,7 +2,6 @@ import { createBrowserRouter, Navigate } from 'react-router';
 import { Layout } from './components/Layout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
-import { AnalysisPage } from './pages/AnalysisPage';
 import { FieldsPage } from './pages/FieldsPage';
 import { DevicesPage } from './pages/DevicesPage';
 import { AlertsPage } from './pages/AlertsPage';
@@ -46,7 +45,6 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute><Layout /></ProtectedRoute>,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: 'analysis', element: <RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><AnalysisPage /></RoleProtectedRoute> },
       { path: 'fields', element: <RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'WORKER', 'FARMER']}><FieldsPage /></RoleProtectedRoute> },
       { path: 'devices', element: <RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'WORKER', 'FARMER']}><DevicesPage /></RoleProtectedRoute> },
       { path: 'alerts', element: <RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'WORKER', 'FARMER']}><AlertsPage /></RoleProtectedRoute> },

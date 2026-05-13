@@ -1,10 +1,12 @@
-﻿import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { CustomSelect } from '../components/CustomSelect';
 import { useState, useRef, useEffect } from 'react';
-import { fieldApi, deviceApi, type Field, type Device } from '../api/client';
+import { fieldApi, deviceApi, thresholdApi, type Field, type Device, type ThresholdRule } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, Plus, Edit, Trash2, Cpu, X, Eye, ChevronLeft, ImageIcon, Upload, Link, XCircle, Check } from 'lucide-react';
+import { MapPin, Plus, Edit, Trash2, Cpu, X, Eye, ChevronLeft, ImageIcon, Upload, Link, XCircle, Check, QrCode, Save, Sliders } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+import { toast } from 'sonner';
+import { useRole } from '../hooks/useRole';
 
 const sampleImages = [
   { label: 'Ruong lua', url: 'https://images.unsplash.com/photo-1655903724829-37b3cd3d4ab9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800' },
@@ -17,32 +19,94 @@ const sampleImages = [
 
 export function FieldsPage() {
   const { user } = useAuth();
-  const isWorker = user?.role?.toUpperCase() === 'WORKER';
-  const canManageFields = !isWorker;
+  const { canManageFields, canManageThresholds, isManager } = useRole();
 
   const [fieldList, setFieldList] = useState<Field[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
+  const [rules, setRules] = useState<ThresholdRule[]>([]);
+  
   const [showModal, setShowModal] = useState(false);
   const [editingField, setEditingField] = useState<Field | null>(null);
-  const [form, setForm] = useState({ name: '', location: '', area: '', cropType: '', status: 'active' as Field['status'], image: '' });
+  const [form, setForm] = useState({ name: '', location: '', area: '', cropType: '', status: 'active' as Field['status'], image: '', zoneCode: '' });
   const [formError, setFormError] = useState('');
   const [selectedField, setSelectedField] = useState<Field | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [qrField, setQrField] = useState<Field | null>(null);
   const [imageInputMode, setImageInputMode] = useState<'gallery' | 'url' | 'upload'>('gallery');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filterZone, setFilterZone] = useState('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [thresholdTemp, setThresholdTemp] = useState<{ min: number; max: number }>({ min: 0, max: 100 });
+  const [thresholdHumid, setThresholdHumid] = useState<{ min: number; max: number }>({ min: 0, max: 100 });
+  const [savingThresholds, setSavingThresholds] = useState(false);
+
+  useEffect(() => {
+    if (selectedField) {
+      const fieldDevices = devices.filter(d => d.fieldId === selectedField.id);
+      const tempDevice = fieldDevices.find(d => d.type?.toUpperCase() === 'TEMPERATURE');
+      const humidDevice = fieldDevices.find(d => d.type?.toUpperCase() === 'HUMIDITY');
+      
+      if (tempDevice) {
+        const rule = rules.find(r => r.deviceId === tempDevice.id);
+        if (rule) setThresholdTemp({ min: rule.minValue, max: rule.maxValue });
+        else setThresholdTemp({ min: 20, max: 35 });
+      }
+      if (humidDevice) {
+        const rule = rules.find(r => r.deviceId === humidDevice.id);
+        if (rule) setThresholdHumid({ min: rule.minValue, max: rule.maxValue });
+        else setThresholdHumid({ min: 40, max: 80 });
+      }
+    }
+  }, [selectedField, devices, rules]);
+
+  const handleSaveThresholds = async () => {
+    if (!selectedField) return;
+    setSavingThresholds(true);
+    const fieldDevices = devices.filter(d => d.fieldId === selectedField.id);
+    const tempDevices = fieldDevices.filter(d => d.type?.toUpperCase() === 'TEMPERATURE');
+    const humidDevices = fieldDevices.filter(d => d.type?.toUpperCase() === 'HUMIDITY');
+    
+    try {
+      const savePromises = [];
+      for (const d of tempDevices) {
+        const existing = rules.find(r => r.deviceId === d.id);
+        if (existing) savePromises.push(thresholdApi.update(existing.id, { minValue: thresholdTemp.min, maxValue: thresholdTemp.max }));
+        else savePromises.push(thresholdApi.create({ deviceId: d.id, parameter: 'temperature', minValue: thresholdTemp.min, maxValue: thresholdTemp.max, action: 'Bật bơm/quạt tương ứng' }));
+      }
+      for (const d of humidDevices) {
+        const existing = rules.find(r => r.deviceId === d.id);
+        if (existing) savePromises.push(thresholdApi.update(existing.id, { minValue: thresholdHumid.min, maxValue: thresholdHumid.max }));
+        else savePromises.push(thresholdApi.create({ deviceId: d.id, parameter: 'humidity', minValue: thresholdHumid.min, maxValue: thresholdHumid.max, action: 'Bật bơm/quạt tương ứng' }));
+      }
+      
+      await Promise.all(savePromises);
+      const newRules = await thresholdApi.getAll().catch(() => []);
+      setRules(newRules);
+      toast.success('Đã lưu ngưỡng cảnh báo thành công!');
+    } catch (e) {
+      console.error(e);
+      toast.error('Có lỗi xảy ra khi lưu ngưỡng cảnh báo!');
+    } finally {
+      setSavingThresholds(false);
+    }
+  };
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [fieldsData, devicesData] = await Promise.all([
-          fieldApi.getAll(),
+        const filterUserId = isManager ? user?.id : undefined;
+        
+        const [fieldsData, devicesData, rulesData] = await Promise.all([
+          fieldApi.getAll(filterUserId),
           deviceApi.getAll(),
+          thresholdApi.getAll().catch(() => [])
         ]);
         setFieldList(fieldsData);
         setDevices(devicesData);
+        setRules(rulesData);
       } catch (err) {
         console.error('FieldsPage load error', err);
         setError(err instanceof Error ? err.message : 'Failed to load');
@@ -56,7 +120,7 @@ export function FieldsPage() {
   const openAdd = () => {
     if (!canManageFields) return;
     setEditingField(null);
-    setForm({ name: '', location: '', area: '', cropType: '', status: 'active', image: '' });
+    setForm({ name: '', location: '', area: '', cropType: '', status: 'active', image: '', zoneCode: '' });
     setFormError('');
     setImageInputMode('gallery');
     setShowModal(true);
@@ -65,7 +129,7 @@ export function FieldsPage() {
   const openEdit = (f: Field) => {
     if (!canManageFields) return;
     setEditingField(f);
-    setForm({ name: f.name, location: f.location, area: String(f.area), cropType: f.cropType, status: f.status, image: f.image || '' });
+    setForm({ name: f.name, location: f.location, area: String(f.area), cropType: f.cropType, status: f.status, image: f.image || '', zoneCode: f.zoneCode || '' });
     setFormError('');
     setImageInputMode(f.image ? 'url' : 'gallery');
     setShowModal(true);
@@ -81,8 +145,10 @@ export function FieldsPage() {
     try {
       const fieldData = {
         ...form,
+        userId: user?.id || 'system',
         area: parseFloat(form.area) || 0,
-        image: form.image || undefined
+        image: form.image || undefined,
+        zoneCode: form.zoneCode || undefined,
       };
   
       if (editingField) {
@@ -123,7 +189,7 @@ export function FieldsPage() {
         if (selectedField?.id === deleteTarget) setSelectedField(null);
       } catch (err) {
         console.error("Lỗi khi xóa cánh đồng:", err);
-        alert("Không thể xóa cánh đồng này!");
+        toast.error("Không thể xóa cánh đồng này!");
       }
     }
   };
@@ -250,6 +316,16 @@ export function FieldsPage() {
               </div>
             ))}
             <div>
+              <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Mã khu vực (VD: Khu A)</label>
+              <input
+                value={form.zoneCode}
+                onChange={e => setForm(prev => ({ ...prev, zoneCode: e.target.value }))}
+                className="form-input"
+                placeholder="Khu A, Khu B, Khu C..."
+              />
+              <p className="text-xs text-gray-400 mt-1">Phân loại cánh đồng theo khu vực địa lý</p>
+            </div>
+            <div>
               <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Trạng thái</label>
               <CustomSelect
                 value={form.status}
@@ -361,7 +437,55 @@ export function FieldsPage() {
                 </div>
               )}
             </div>
-
+            {canManageThresholds && (fieldDevices.some(d => d.type?.toUpperCase() === 'TEMPERATURE') || fieldDevices.some(d => d.type?.toUpperCase() === 'HUMIDITY')) && (
+              <div className="mt-6 pt-6 border-t border-gray-100">
+                <div className="flex items-center gap-2 mb-4">
+                  <Sliders className="w-5 h-5 text-gray-400" />
+                  <h3 className="text-gray-800">Ngưỡng cảnh báo môi trường</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#f8faf8] p-5 rounded-xl border border-green-50">
+                  {fieldDevices.some(d => d.type?.toUpperCase() === 'TEMPERATURE') && (
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-gray-700 flex items-center justify-between">
+                        <span>Nhiệt độ (°C)</span>
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <label className="text-xs text-gray-500 mb-1 block">Tối thiểu</label>
+                          <input type="number" className="form-input text-sm" value={thresholdTemp.min} onChange={e => setThresholdTemp(p => ({ ...p, min: Number(e.target.value) }))} />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-xs text-gray-500 mb-1 block">Tối đa</label>
+                          <input type="number" className="form-input text-sm" value={thresholdTemp.max} onChange={e => setThresholdTemp(p => ({ ...p, max: Number(e.target.value) }))} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {fieldDevices.some(d => d.type?.toUpperCase() === 'HUMIDITY') && (
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-gray-700 flex items-center justify-between">
+                        <span>Độ ẩm (%)</span>
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <label className="text-xs text-gray-500 mb-1 block">Tối thiểu</label>
+                          <input type="number" className="form-input text-sm" value={thresholdHumid.min} onChange={e => setThresholdHumid(p => ({ ...p, min: Number(e.target.value) }))} />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-xs text-gray-500 mb-1 block">Tối đa</label>
+                          <input type="number" className="form-input text-sm" value={thresholdHumid.max} onChange={e => setThresholdHumid(p => ({ ...p, max: Number(e.target.value) }))} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <button onClick={handleSaveThresholds} disabled={savingThresholds} className="btn-primary" style={{ padding: '8px 20px', fontSize: '13px' }}>
+                    <Save className="w-4 h-4" /> {savingThresholds ? 'Đang lưu...' : 'Lưu ngưỡng cảnh báo'}
+                  </button>
+                </div>
+              </div>
+            )}
             {canManageFields && (
               <div className="flex gap-3 mt-6 pt-5 border-t border-gray-100">
                 <button onClick={() => openEdit(selectedField)} className="action-btn edit" style={{ width: 'auto', borderRadius: '50px', padding: '8px 20px', gap: '6px' }}>
@@ -384,6 +508,7 @@ export function FieldsPage() {
           confirmLabel="Xóa"
         />
 
+
         {renderModal()}
       </div>
     );
@@ -403,8 +528,32 @@ export function FieldsPage() {
         )}
       </div>
 
+      {/* Zone filter */}
+      {(() => {
+        const zones = [...new Set(fieldList.map(f => f.zoneCode).filter(Boolean))] as string[];
+        return zones.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setFilterZone('all')}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filterZone === 'all' ? 'bg-green-600 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            >
+              Tất cả
+            </button>
+            {zones.map(z => (
+              <button
+                key={z}
+                onClick={() => setFilterZone(z)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filterZone === z ? 'bg-green-600 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                {z}
+              </button>
+            ))}
+          </div>
+        ) : null;
+      })()}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {fieldList.map(f => {
+        {fieldList.filter(f => filterZone === 'all' || f.zoneCode === filterZone).map(f => {
           const fieldDevices = devices.filter(d => d.fieldId === f.id);
           return (
             <div key={f.id} className="farm-card overflow-hidden">
@@ -416,7 +565,14 @@ export function FieldsPage() {
                     <ImageIcon className="w-8 h-8 text-gray-300" />
                   </div>
                 )}
-                <div className="absolute top-3 right-3">{statusBadge(f.status)}</div>
+                <div className="absolute top-3 right-3 flex items-center gap-1.5 flex-wrap">
+                  {f.zoneCode && (
+                    <span className="px-2 py-0.5 bg-green-600/90 text-white text-[10px] font-bold rounded-full backdrop-blur">
+                      {f.zoneCode}
+                    </span>
+                  )}
+                  {statusBadge(f.status)}
+                </div>
               </div>
               <div className="p-5">
                 <h3 className="text-gray-800 cursor-pointer hover:text-green-600 transition-colors" onClick={() => setSelectedField(f)}>{f.name}</h3>
@@ -430,12 +586,14 @@ export function FieldsPage() {
                 </div>
                 <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
                   <button onClick={() => setSelectedField(f)} className="action-btn view" title="Xem"><Eye className="w-4 h-4" /></button>
-                  {canManageFields && (
-                    <>
-                      <button onClick={() => openEdit(f)} className="action-btn edit" title="Sửa"><Edit className="w-4 h-4" /></button>
-                      <button onClick={() => setDeleteTarget(f.id)} className="action-btn delete" title="Xóa"><Trash2 className="w-4 h-4" /></button>
-                    </>
-                  )}
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setQrField(f); }} 
+                    className="action-btn flex items-center justify-center" 
+                    style={{ color: '#2563eb', backgroundColor: '#eff6ff', padding: '8px', borderRadius: '12px' }} 
+                    title="Mã QR"
+                  >
+                    <QrCode className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -453,6 +611,27 @@ export function FieldsPage() {
       />
 
       {renderModal()}
+
+      {qrField && (
+        <div className="modal-overlay">
+          <div className="modal-content text-center" style={{ maxWidth: '360px' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg">Mã QR Định Danh</h2>
+              <button onClick={() => setQrField(null)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <div className="bg-white p-4 rounded-xl inline-block shadow-sm border mb-4">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({ id: qrField.id, name: qrField.name, zone: qrField.zoneCode, location: qrField.location }))}`} 
+                alt="QR Code" 
+                className="w-48 h-48 mx-auto"
+              />
+            </div>
+            <h3 className="font-bold text-gray-800">{qrField.name}</h3>
+            <p className="text-sm text-gray-500 mb-2">{qrField.zoneCode ? `Phân vùng: ${qrField.zoneCode}` : 'Chưa phân vùng'} • {qrField.location}</p>
+            <p className="text-xs text-gray-400 mt-2">Quét mã này để xem hoặc chia sẻ thông tin chi tiết về khu vực canh tác.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

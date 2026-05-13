@@ -1,8 +1,9 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { userApi } from '../api/client';
 import { User, Shield, Bell, Save } from 'lucide-react';
 import { toast } from 'sonner';
+import { getRoleLabel } from '../hooks/useRole';
 
 export function SettingsPage() {
   const { user } = useAuth();
@@ -103,7 +104,7 @@ export function SettingsPage() {
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Vai trò</label>
-                <input value={user?.role === 'ADMIN' ? 'Quan tri vien' : user?.role || 'Nong dan'} disabled className="form-input !bg-gray-100 !text-gray-500" />
+                <input value={getRoleLabel(user?.role)} disabled className="form-input !bg-gray-100 !text-gray-500" />
               </div>
               <button onClick={handleSaveProfile} className="btn-primary">
                 <Save className="w-4 h-4" /> Lưu thay đổi

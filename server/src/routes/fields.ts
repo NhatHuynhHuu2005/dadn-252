@@ -6,7 +6,18 @@ const router = Router();
 // Get all fields
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const fields = await allAsync('SELECT * FROM fields ORDER BY createdAt DESC');
+    const { userId } = req.query;
+    let query = 'SELECT * FROM fields';
+    let params: any[] = [];
+
+    if (userId) {
+      query += ' WHERE userId = ?';
+      params.push(userId);
+    }
+    
+    query += ' ORDER BY createdAt DESC';
+    
+    const fields = await allAsync(query, params);
     res.json(fields);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch fields' });
@@ -29,18 +40,15 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // Create field
-
-
-// Trong router.post('/', ...)
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { id, name, location, area, cropType, status, image } = req.body;
+    const { id, name, location, area, cropType, status, image, zoneCode } = req.body;
     const newId = id || `fld_${Date.now()}`;
 
     await runAsync(
-      `INSERT INTO fields (id, name, location, area, cropType, status, image)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [newId, name, location, area, cropType, status || 'ACTIVE', image || null]
+      `INSERT INTO fields (id, name, location, area, cropType, status, image, zoneCode)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [newId, name, location, area, cropType, status || 'ACTIVE', image || null, zoneCode || null]
     );
 
     const field = await getAsync('SELECT * FROM fields WHERE id = ?', [newId]);
@@ -50,14 +58,14 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-// Trong router.put('/:id', ...)
+// Update field
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const { name, location, area, cropType, status, image } = req.body;
+    const { name, location, area, cropType, status, image, zoneCode } = req.body;
     await runAsync(
-      `UPDATE fields SET name = ?, location = ?, area = ?, cropType = ?, status = ?, image = ?, updatedAt = CURRENT_TIMESTAMP
+      `UPDATE fields SET name = ?, location = ?, area = ?, cropType = ?, status = ?, image = ?, zoneCode = ?, updatedAt = CURRENT_TIMESTAMP
       WHERE id = ?`,
-      [name, location, area, cropType, status, image || null, req.params.id]
+      [name, location, area, cropType, status, image || null, zoneCode || null, req.params.id]
     );
 
     const field = await getAsync('SELECT * FROM fields WHERE id = ?', [req.params.id]);
