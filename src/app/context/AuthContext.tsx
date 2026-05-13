@@ -22,7 +22,9 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('currentUser');
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    return parsed?.role?.toLowerCase?.() === 'farmer' ? null : parsed;
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,12 +34,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       const response = await userApi.login({ username, password });
+      if (response.role?.toLowerCase() === 'farmer') {
+        throw new Error('Tài khoản FARMER không được phép đăng nhập');
+      }
       setUser(response);
       localStorage.setItem('currentUser', JSON.stringify(response));
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed';
       setError(message);
+      if (message.includes('FARMER')) {
+        localStorage.removeItem('currentUser');
+      }
       console.error('Login error:', err);
       return false;
     } finally {

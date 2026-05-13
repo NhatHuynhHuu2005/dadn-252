@@ -3,8 +3,11 @@ import { CustomSelect } from '../components/CustomSelect';
 import { useState, useEffect } from 'react';
 import { scheduleApi, deviceApi, fieldApi, type Schedule, type Device, type Field } from '../api/client';
 import { CalendarClock, Plus, Edit, Trash2, X, Power, PowerOff, Eye, ChevronLeft } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export function SchedulesPage() {
+  const { user } = useAuth();
+  const isReadOnly = user?.role?.toUpperCase() === 'WORKER';
   const [scheduleList, setScheduleList] = useState<Schedule[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
@@ -41,6 +44,7 @@ export function SchedulesPage() {
   const actuators = devices.filter(d => ['pump', 'valve', 'fan', 'control'].includes((d.type || '').toLowerCase()));
 
   const openAdd = () => {
+    if (isReadOnly) return;
     setEditingSchedule(null);
     setForm({ name: '', fieldId: fields[0]?.id || '', deviceId: '', action: 'on', cronExpression: '0 6 * * *', isActive: true });
     setFormError('');
@@ -48,6 +52,7 @@ export function SchedulesPage() {
   };
 
   const openEdit = (s: Schedule) => {
+    if (isReadOnly) return;
     setEditingSchedule(s);
     setForm({ name: s.name, fieldId: s.fieldId || '', deviceId: s.deviceId || '', action: s.action as 'on' | 'off', cronExpression: s.cronExpression, isActive: s.isActive });
     setFormError('');
@@ -55,6 +60,7 @@ export function SchedulesPage() {
   };
 
   const handleSave = async () => {
+    if (isReadOnly) return;
     if (!form.name) { setFormError('Vui lòng nhập tên lịch hẹn'); return; }
     if (!form.fieldId) { setFormError('Vui lòng chọn cánh đồng'); return; }
     if (!form.deviceId) { setFormError('Vui lòng chọn thiết bị'); return; }
@@ -77,6 +83,7 @@ export function SchedulesPage() {
   };
 
   const toggleActive = async (id: string) => {
+    if (isReadOnly) return;
     const s = scheduleList.find(x => x.id === id);
     if (!s) return;
 
@@ -95,6 +102,7 @@ export function SchedulesPage() {
   };
 
   const confirmDelete = async () => {
+    if (isReadOnly) return;
     if (deleteTarget) {
       try {
         await scheduleApi.delete(deleteTarget); // Xóa khỏi DB
@@ -151,9 +159,11 @@ export function SchedulesPage() {
                 </span>
               </div>
             </div>
-            <button onClick={() => toggleActive(selectedSchedule.id)} className={`w-12 h-7 rounded-full flex items-center px-0.5 transition-colors ${selectedSchedule.isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
-              <div className={`w-6 h-6 bg-white rounded-full shadow transition-transform ${selectedSchedule.isActive ? 'translate-x-5' : 'translate-x-0'}`} />
-            </button>
+            {!isReadOnly && (
+              <button onClick={() => toggleActive(selectedSchedule.id)} className={`w-12 h-7 rounded-full flex items-center px-0.5 transition-colors ${selectedSchedule.isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
+                <div className={`w-6 h-6 bg-white rounded-full shadow transition-transform ${selectedSchedule.isActive ? 'translate-x-5' : 'translate-x-0'}`} />
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             {[
@@ -173,16 +183,18 @@ export function SchedulesPage() {
             <p className="text-sm text-gray-800 mt-1 font-mono">{selectedSchedule.cronExpression}</p>
             <p className="text-xs text-gray-400 mt-1">Ngày tạo: {new Date(selectedSchedule.createdAt).toLocaleDateString('vi-VN')}</p>
           </div>
-          <div className="flex gap-3 pt-5 border-t border-gray-100">
-            <button onClick={() => openEdit(selectedSchedule)} className="action-btn edit" style={{ width: 'auto', borderRadius: '50px', padding: '8px 20px', gap: '6px' }}>
-              <Edit className="w-4 h-4" /> Sửa
-            </button>
-            <button onClick={() => setDeleteTarget(selectedSchedule.id)} className="action-btn delete" style={{ width: 'auto', borderRadius: '50px', padding: '8px 20px', gap: '6px' }}>
-              <Trash2 className="w-4 h-4" /> Xóa
-            </button>
-          </div>
+          {!isReadOnly && (
+            <div className="flex gap-3 pt-5 border-t border-gray-100">
+              <button onClick={() => openEdit(selectedSchedule)} className="action-btn edit" style={{ width: 'auto', borderRadius: '50px', padding: '8px 20px', gap: '6px' }}>
+                <Edit className="w-4 h-4" /> Sửa
+              </button>
+              <button onClick={() => setDeleteTarget(selectedSchedule.id)} className="action-btn delete" style={{ width: 'auto', borderRadius: '50px', padding: '8px 20px', gap: '6px' }}>
+                <Trash2 className="w-4 h-4" /> Xóa
+              </button>
+            </div>
+          )}
         </div>
-        <ConfirmDialog open={!!deleteTarget} title="Xóa lịch hẹn" message="Bạn có chắc chắn muốn xóa lịch hẹn này? Thiết bị sẽ không tự động bật/tắt theo lịch này nữa." onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} confirmLabel="Xóa" />
+        <ConfirmDialog open={!isReadOnly && !!deleteTarget} title="Xóa lịch hẹn" message="Bạn có chắc chắn muốn xóa lịch hẹn này? Thiết bị sẽ không tự động bật/tắt theo lịch này nữa." onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} confirmLabel="Xóa" />
       </div>
     );
   }
@@ -194,9 +206,11 @@ export function SchedulesPage() {
           <h1>Lịch hẹn</h1>
           <p>Đặt lịch tự động bật/tắt thiết bị</p>
         </div>
-        <button onClick={openAdd} className="btn-primary">
-          <Plus className="w-4 h-4" /> Thêm lịch
-        </button>
+        {!isReadOnly && (
+          <button onClick={openAdd} className="btn-primary">
+            <Plus className="w-4 h-4" /> Thêm lịch
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -215,9 +229,11 @@ export function SchedulesPage() {
                     <p className="text-xs text-gray-500">{device?.name || 'N/A'}</p>
                   </div>
                 </div>
-                <button onClick={e => { e.stopPropagation(); toggleActive(s.id); }} className={`w-10 h-6 rounded-full flex items-center px-0.5 transition-colors ${s.isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
-                  <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${s.isActive ? 'translate-x-4' : 'translate-x-0'}`} />
-                </button>
+                {!isReadOnly && (
+                  <button onClick={e => { e.stopPropagation(); toggleActive(s.id); }} className={`w-10 h-6 rounded-full flex items-center px-0.5 transition-colors ${s.isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
+                    <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${s.isActive ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-3 text-sm text-gray-500 mb-3">
                 <CalendarClock className="w-4 h-4" />
@@ -229,15 +245,19 @@ export function SchedulesPage() {
               </div>
               <div className="flex gap-2 mt-4 pt-3 border-t border-gray-100">
                 <button onClick={e => { e.stopPropagation(); setSelectedSchedule(s); }} className="action-btn view" title="Xem"><Eye className="w-4 h-4" /></button>
-                <button onClick={e => { e.stopPropagation(); openEdit(s); }} className="action-btn edit" title="Sửa"><Edit className="w-4 h-4" /></button>
-                <button onClick={e => { e.stopPropagation(); setDeleteTarget(s.id); }} className="action-btn delete" title="Xóa"><Trash2 className="w-4 h-4" /></button>
+                {!isReadOnly && (
+                  <>
+                    <button onClick={e => { e.stopPropagation(); openEdit(s); }} className="action-btn edit" title="Sửa"><Edit className="w-4 h-4" /></button>
+                    <button onClick={e => { e.stopPropagation(); setDeleteTarget(s.id); }} className="action-btn delete" title="Xóa"><Trash2 className="w-4 h-4" /></button>
+                  </>
+                )}
               </div>
             </div>
           );
         })}
       </div>
 
-      {showModal && (
+      {showModal && !isReadOnly && (
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="flex items-center justify-between mb-6">
@@ -302,7 +322,7 @@ export function SchedulesPage() {
         </div>
       )}
 
-      <ConfirmDialog open={!!deleteTarget} title="Xóa lịch hẹn" message="Bạn có chắc chắn muốn xóa lịch hẹn này? Thiết bị sẽ không tự động bật/tắt theo lịch này nữa." onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} confirmLabel="Xóa" />
+      <ConfirmDialog open={!isReadOnly && !!deleteTarget} title="Xóa lịch hẹn" message="Bạn có chắc chắn muốn xóa lịch hẹn này? Thiết bị sẽ không tự động bật/tắt theo lịch này nữa." onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} confirmLabel="Xóa" />
     </div>
   );
 }

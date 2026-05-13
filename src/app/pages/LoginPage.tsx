@@ -105,7 +105,6 @@ export function LoginPage() {
               <p className="flex items-center gap-2"><span className="px-2 py-0.5 bg-purple-200 rounded-full text-[10px] uppercase tracking-wider text-purple-700">Admin</span> admin / admin123</p>
               <p className="flex items-center gap-2"><span className="px-2 py-0.5 bg-orange-100 rounded-full text-[10px] uppercase tracking-wider text-orange-700">Manager</span> manager / manager123</p>
               <p className="flex items-center gap-2"><span className="px-2 py-0.5 bg-blue-100 rounded-full text-[10px] uppercase tracking-wider text-blue-700">Worker</span> worker / worker123</p>
-              <p className="flex items-center gap-2"><span className="px-2 py-0.5 bg-green-200 rounded-full text-[10px] uppercase tracking-wider">Farmer</span> farmer / farmer123</p>
             </div>
           </div>
         </div>

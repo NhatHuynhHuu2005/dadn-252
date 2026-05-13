@@ -1,34 +1,26 @@
 ﻿import { ConfirmDialog } from '../components/ConfirmDialog';
-import { CustomSelect } from '../components/CustomSelect';
 import { useState, useEffect, useMemo } from 'react';
-import { alertApi, deviceApi, fieldApi, type Alert, type Device, type Field } from '../api/client';
-import { AlertTriangle, Bell, CheckCheck, Trash2, Plus, X, Activity } from 'lucide-react';
+import { alertApi, deviceApi, type Alert, type Device } from '../api/client';
+import { AlertTriangle, Bell, CheckCheck, Trash2, Activity } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 
 export function AlertsPage() {
   const [alertList, setAlertList] = useState<Alert[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
-  const [fields, setFields] = useState<Field[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread' | 'warning' | 'critical' | 'info'>('all');
-  const [showModal, setShowModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  
-  const [form, setForm] = useState({ deviceId: '', type: 'warning' as Alert['type'], message: '' });
-  const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [alertsData, devicesData, fieldsData] = await Promise.all([
+        const [alertsData, devicesData] = await Promise.all([
           alertApi.getAll().catch(() => []),
           deviceApi.getAll().catch(() => []),
-          fieldApi.getAll().catch(() => []),
         ]);
         setAlertList(alertsData);
         setDevices(devicesData);
-        setFields(fieldsData);
       } catch (err) {
         console.error('AlertsPage load error', err);
       } finally {
@@ -107,33 +99,6 @@ const markAllRead = async () => {
       }
     }
   };
-
-  const handleSave = async () => {
-    if (!form.message) { setFormError('Vui lòng nhập nội dung cảnh báo'); return; }
-    if (!form.deviceId) { setFormError('Vui lòng chọn thiết bị'); return; }
-    
-    try {
-      // Gọi API thêm mới vào DB
-      const newAlert = await alertApi.create({
-        deviceId: form.deviceId,
-        type: form.type,
-        message: form.message,
-        isRead: false
-      });
-      
-      setAlertList(prev => [newAlert, ...prev]);
-      setShowModal(false);
-    } catch (error) {
-      console.error("Lỗi khi tạo cảnh báo", error);
-      setFormError('Có lỗi xảy ra khi lưu vào hệ thống');
-    }
-  };
-
-  const openAdd = () => {
-    setForm({ deviceId: devices[0]?.id || '', type: 'warning', message: '' });
-    setFormError('');
-    setShowModal(true);
-  };
   // ----------------------------------
 
   const filtered = alertList.filter(a => {
@@ -162,9 +127,6 @@ const markAllRead = async () => {
         <div className="flex items-center gap-3">
           <button onClick={markAllRead} className="btn-ghost">
             <CheckCheck className="w-4 h-4" /> Đã đọc tất cả
-          </button>
-          <button onClick={openAdd} className="btn-primary">
-            <Plus className="w-4 h-4" /> Tạo cảnh báo
           </button>
         </div>
       </div>
@@ -248,49 +210,6 @@ const markAllRead = async () => {
           );
         })}
       </div>
-
-      {/* Modal Thêm Mới */}
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="flex items-center justify-between mb-6">
-              <h2>Tạo cảnh báo mới</h2>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
-            </div>
-            {formError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">{formError}</div>}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Thiết bị *</label>
-                <CustomSelect
-                  value={form.deviceId}
-                  onChange={v => setForm(p => ({ ...p, deviceId: v }))}
-                  options={devices.map(d => ({ value: d.id, label: d.name }))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Mức độ *</label>
-                <CustomSelect
-                  value={form.type}
-                  onChange={v => setForm(p => ({ ...p, type: v as Alert['type'] }))}
-                  options={[
-                    { value: 'info', label: 'Thông tin' },
-                    { value: 'warning', label: 'Cảnh báo' },
-                    { value: 'critical', label: 'Nghiêm trọng' },
-                  ]}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Nội dung *</label>
-                <textarea value={form.message} onChange={e => { setForm(p => ({ ...p, message: e.target.value })); setFormError(''); }} rows={3} className="form-input resize-none" placeholder="Mô tả cảnh báo..." />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-7">
-              <button onClick={() => setShowModal(false)} className="btn-ghost flex-1 justify-center">Hủy</button>
-              <button onClick={handleSave} className="btn-primary flex-1 justify-center">Lưu</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <ConfirmDialog open={!!deleteTarget} title="Xóa cảnh báo" message="Bạn có chắc chắn muốn xóa cảnh báo này?" onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} confirmLabel="Xóa" />
     </div>

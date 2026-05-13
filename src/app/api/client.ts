@@ -73,9 +73,17 @@ export interface User {
   token?: string;
 }
 
+function normalizeUser(user: any): User {
+  return {
+    ...user,
+    role: (user.role || 'farmer').toString().toLowerCase(),
+    createdAt: user.createdAt || new Date().toISOString(),
+  } as User;
+}
+
 export const userApi = {
   async login(credentials: LoginRequest): Promise<User> {
-    const user = await fetchApi<Partial<User>>('/users/login', {
+    const user = await fetchApi<any>('/users/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
@@ -84,29 +92,33 @@ export const userApi = {
       user.token = `local-token-${Date.now()}`;
     }
 
-    return user as User;
+    return normalizeUser(user);
   },
 
   async getAll(): Promise<User[]> {
-    return fetchApi<User[]>('/users');
+    const users = await fetchApi<any[]>('/users');
+    return users.map(normalizeUser);
   },
 
   async getById(id: string): Promise<User> {
-    return fetchApi<User>(`/users/${id}`);
+    const user = await fetchApi<any>(`/users/${id}`);
+    return normalizeUser(user);
   },
 
   async create(data: Omit<User, 'id' | 'createdAt'>): Promise<User> {
-    return fetchApi<User>('/users', {
+    const user = await fetchApi<any>('/users', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    return normalizeUser(user);
   },
 
   async update(id: string, data: Partial<User>): Promise<User> {
-    return fetchApi<User>(`/users/${id}`, {
+    const user = await fetchApi<any>(`/users/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+    return normalizeUser(user);
   },
 
   async delete(id: string): Promise<void> {
@@ -287,13 +299,6 @@ export const alertApi = {
 
   async getByDevice(deviceId: string): Promise<Alert[]> {
     return fetchApi<Alert[]>(`/alerts/device/${deviceId}`);
-  },
-
-  async create(data: Omit<Alert, 'id' | 'createdAt'>): Promise<Alert> {
-    return fetchApi<Alert>('/alerts', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
   },
 
   async markAsRead(id: string): Promise<Alert> {

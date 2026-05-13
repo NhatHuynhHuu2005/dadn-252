@@ -19,7 +19,7 @@ const typeIcons: Record<string, any> = {
 
 const typeLabels: Record<string, string> = {
   temperature: 'Nhiệt độ',
-  humidity: 'Dộ ẩm',
+  humidity: 'Độ ẩm',
   soil_moisture: 'Độ ẩm đất',
   light: 'Ánh sáng',
   ph: 'pH',
@@ -401,7 +401,7 @@ export function DevicesPage() {
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="flex items-center justify-between mb-6">
-              <h2>Thêm thiet bi mới</h2>
+              <h2>Thêm thiết bị mới</h2>
               <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
             </div>
             {addError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">{addError}</div>}

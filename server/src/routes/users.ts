@@ -34,6 +34,10 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    if ((user.role || '').toUpperCase() === 'FARMER') {
+      return res.status(403).json({ error: 'FARMER accounts are disabled for login' });
+    }
+
     const { password: _pass, ...userWithoutPassword } = user;
     const token = `token_${user.id}_${Date.now()}`;
 

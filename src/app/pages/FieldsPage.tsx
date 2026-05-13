@@ -377,8 +377,8 @@ export function FieldsPage() {
 
         <ConfirmDialog
           open={!!deleteTarget}
-          title="Xóa canh dong"
-          message="Ban co chắc chắn muon xoa canh dong nay? Tat ca thiet bi lien quan cung se bi ảnh hưởng."
+          title="Xóa cánh đồng"
+          message="Bạn có chắc chắn muốn xóa cánh đồng này? Tất cẩ những thiết bị liên quan cũng sẽ bị ảnh hưởng."
           onConfirm={confirmDelete}
           onCancel={() => setDeleteTarget(null)}
           confirmLabel="Xóa"
@@ -445,8 +445,8 @@ export function FieldsPage() {
 
       <ConfirmDialog
         open={!!deleteTarget}
-        title="Xóa canh dong"
-        message="Ban co chắc chắn muon xoa canh dong nay? Hanh dong nay khong the hoàn tác."
+        title="Xóa cánh đồng"
+        message="Bạn có chắc chắn muốn xóa cánh đồng này? Hành động này không thể hoàn tác."
         onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)}
         confirmLabel="Xóa"

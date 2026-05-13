@@ -1,7 +1,7 @@
 ﻿import { NavLink, Outlet, useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Map, Cpu, Bell, CalendarClock, Settings, LogOut, Menu, X, Leaf, User, ChevronDown, Activity, Users, BarChart3
+  LayoutDashboard, Map, Cpu, Bell, CalendarClock, Settings, LogOut, Menu, X, Leaf, User, ChevronDown, Activity, Users, BarChart3, Sliders
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -11,6 +11,7 @@ const allNavItems = [
   { to: '/fields', icon: Map, label: 'Cánh đồng', roles: ['ADMIN', 'MANAGER', 'WORKER', 'FARMER'] },
   { to: '/devices', icon: Cpu, label: 'Thiết bị', roles: ['ADMIN', 'MANAGER', 'WORKER', 'FARMER'] },
   { to: '/alerts', icon: Bell, label: 'Cảnh báo', roles: ['ADMIN', 'MANAGER', 'WORKER', 'FARMER'] },
+  { to: '/alert-thresholds', icon: Sliders, label: 'Ngưỡng cảnh báo', roles: ['ADMIN', 'MANAGER', 'WORKER'] },
   { to: '/schedules', icon: CalendarClock, label: 'Lịch hẹn', roles: ['ADMIN', 'MANAGER', 'WORKER'] },
   { to: '/action-logs', icon: Activity, label: 'Nhật ký', roles: ['ADMIN', 'MANAGER'] },
   { to: '/users', icon: Users, label: 'Người dùng', roles: ['ADMIN'] },

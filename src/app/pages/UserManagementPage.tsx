@@ -50,7 +50,7 @@ export function UserManagementPage() {
 
   const openEdit = (u: User) => {
     setEditingUser(u);
-    setForm({ username: u.username, email: u.email, fullName: u.fullName, password: '', role: u.role });
+    setForm({ username: u.username, email: u.email, fullName: u.fullName, password: '', role: u.role.toLowerCase() as User['role'] });
     setFormError('');
     setShowModal(true);
   };
@@ -99,13 +99,14 @@ export function UserManagementPage() {
   };
 
   const roleBadge = (role: string) => {
+    const normalizedRole = (role || '').toLowerCase();
     const config: Record<string, { cls: string; label: string }> = {
       admin: { cls: 'bg-purple-100 text-purple-700', label: 'Quản trị viên' },
       manager: { cls: 'bg-orange-100 text-orange-700', label: 'Quản lý' },
       worker: { cls: 'bg-blue-100 text-blue-700', label: 'Thợ công' },
       farmer: { cls: 'bg-green-100 text-green-700', label: 'Nông dân' },
     };
-    const c = config[role] || config.farmer;
+    const c = config[normalizedRole] || config.farmer;
     return <span className={`status-badge ${c.cls}`}>{c.label}</span>;
   };
 

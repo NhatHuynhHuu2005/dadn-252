@@ -33,26 +33,9 @@ router.get('/device/:deviceId', async (req: Request, res: Response) => {
   }
 });
 
-// Create alert
-// Create alert
-router.post('/', async (req: Request, res: Response) => {
-  try {
-    const { id, deviceId, message, type } = req.body;
-    
-    const newId = id || `alr_${Date.now()}`;
-
-    await runAsync(
-      `INSERT INTO alerts (id, deviceId, message, type, isRead)
-      VALUES (?, ?, ?, ?, 0)`,
-      [newId, deviceId, message, type || 'warning']
-    );
-
-    const alert = await getAsync('SELECT * FROM alerts WHERE id = ?', [newId]);
-    res.status(201).json(alert);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to create alert' });
-  }
+// Create alert is disabled for all roles.
+router.post('/', async (_req: Request, res: Response) => {
+  res.status(403).json({ error: 'Create alert feature has been disabled' });
 });
 
 // Mark alert as read
