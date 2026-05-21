@@ -4,7 +4,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { CustomSelect } from '../components/CustomSelect';
 import * as XLSX from 'xlsx';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import { useRole } from '../hooks/useRole';
 import { useAuth } from '../context/AuthContext';
 
@@ -16,7 +16,7 @@ const cropRecommendations: Record<string, {
   metrics: { name: string; ideal: string; optimal: number; unit: string; importance: 'high' | 'medium' | 'low' }[];
   tips: string[];
 }> = {
-  'Lua': {
+  'Rice': {
     label: 'Lua (Rice)',
     color: '#22c55e',
     icon: Leaf,
@@ -34,7 +34,7 @@ const cropRecommendations: Record<string, {
       'Giam luong nuoc truoc thu hoach 7-10 ngay de hat chin deu',
     ],
   },
-  'Rau xanh': {
+  'Vegetables': {
     label: 'Rau xanh (Vegetables)',
     color: '#10b981',
     icon: Leaf,
@@ -52,8 +52,8 @@ const cropRecommendations: Record<string, {
       'Che bong nhe khi nhiet do vuot 35°C de tranh chay la',
     ],
   },
-  'Ca chua': {
-    label: 'Ca chua (Tomato)',
+  'Corn': {
+    label: 'Ngo (Corn))',
     color: '#ef4444',
     icon: Leaf,
     metrics: [
@@ -65,7 +65,7 @@ const cropRecommendations: Record<string, {
       { name: 'CO2', ideal: '800-1200', optimal: 1000, unit: 'ppm', importance: 'low' },
     ],
     tips: [
-      'Ca chua can nhieu anh sang, toi thieu 6-8h/ngay',
+      'Ngo can nhieu anh sang, toi thieu 6-8h/ngay',
       'Độ ẩm không khí qua cao (>80%) gay nam benh, can thong gio tot',
       'Tuoi goc, tranh tuoi len la de giam nguy co benh',
     ],
@@ -104,7 +104,21 @@ export function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   const { readings: wsReadings, isConnected: wsConnected } = useWebSocketBroadcast();
+  const [currentTime, setCurrentTime] = useState('');
 
+  useEffect(() => {
+  const updateClock = () => {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    setCurrentTime(`${hours}:${minutes}`);
+  };
+
+  updateClock(); // Chạy ngay lần đầu
+  const timer = setInterval(updateClock, 1000); // Cập nhật sau mỗi giây
+
+  return () => clearInterval(timer);
+}, []);
   // Live device state from WebSocket
   const [liveDevices, setLiveDevices] = useState<Record<string, Device>>({});
   useEffect(() => {
@@ -120,7 +134,6 @@ export function DashboardPage() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [selectedField, setSelectedField] = useState<string>('all');
   const [selectedCrop, setSelectedCrop] = useState<string>('all');
-  const [showExportMenu, setShowExportMenu] = useState(false);
   const [downloadingChart, setDownloadingChart] = useState<string | null>(null);
 
   // Refs for chart download
@@ -130,6 +143,9 @@ export function DashboardPage() {
     actionChart: useRef<HTMLDivElement>(null),
     deviceStatusChart: useRef<HTMLDivElement>(null),
     fieldStatusChart: useRef<HTMLDivElement>(null),
+    tempChart: useRef<HTMLDivElement>(null),
+    humidityChart: useRef<HTMLDivElement>(null),
+    soilChart: useRef<HTMLDivElement>(null),
   };
 
   const { user } = useAuth();
@@ -240,10 +256,65 @@ export function DashboardPage() {
 
   const cropTypes = useMemo(() => [...new Set(fields.map(f => f.cropType))], [fields]);
 
+  // Sensor cards from filtered devices
+  const sensorCards = useMemo(() =>
+    filteredDevices.filter(d => ['temperature', 'humidity', 'soil_moisture', 'light', 'ph'].includes(d.type) && d.status === 'online'),
+    [filteredDevices]
+  );
+
+  // Chart data from first temperature & humidity sensor of filtered đoạn này....................................................
+  const tempDevice = filteredDevices.find(d => d.type === 'temperature');
+  const humDevice = filteredDevices.find(d => d.type === 'humidity');
+  const soilDevice = filteredDevices.find(d => d.type === 'soil_moisture');
+
+  const tempData = useMemo(() => {
+    if (!tempDevice || !sensorHistories[tempDevice.id]) return [];
+    return sensorHistories[tempDevice.id]
+      .slice(-48)
+      .filter((_: any, i: number) => i % 4 === 0)
+      .map((l: any) => {
+        // Tìm đúng trường chứa thời gian
+        const timeValue = l.timestamp || l.createdAt || l.time;
+        const d = new Date(timeValue);
+        return {
+          time: isNaN(d.getTime()) ? 'N/A' : d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+          value: l.value
+        };
+      });
+  }, [tempDevice?.id, sensorHistories]);
+
+  const humidityData = useMemo(() => {
+    if (!humDevice || !sensorHistories[humDevice.id]) return [];
+    return sensorHistories[humDevice.id]
+      .slice(-48)
+      .filter((_: any, i: number) => i % 4 === 0)
+      .map((l: any) => {
+        const timeValue = l.timestamp || l.createdAt || l.time;
+        const d = new Date(timeValue);
+        return {
+          time: isNaN(d.getTime()) ? 'N/A' : d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+          value: l.value
+        };
+      });
+  }, [humDevice?.id, sensorHistories]);
+
+  const soilData = useMemo(() => {
+    if (!soilDevice || !sensorHistories[soilDevice.id]) return [];
+    return sensorHistories[soilDevice.id]
+      .slice(-48)
+      .filter((_: any, i: number) => i % 4 === 0)
+      .map((l: any) => {
+        const timeValue = l.timestamp || l.createdAt || l.time;
+        const d = new Date(timeValue);
+        return {
+          time: isNaN(d.getTime()) ? 'N/A' : d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+          value: l.value
+        };
+      });
+  }, [soilDevice?.id, sensorHistories]);
+
   // ── XUẤT EXCEL ──────────────────────────────────────────────────────────────
   const exportExcel = useCallback(() => {
-    setShowExportMenu(false);
-
     const wb = XLSX.utils.book_new();
 
     // Sheet 1: Tổng quan
@@ -300,72 +371,101 @@ export function DashboardPage() {
     ];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(scheduleRows), 'Lịch hẹn');
 
+    // Sheet 6: Thống kê Biểu đồ (Cung cấp đầy đủ dữ liệu của cả 8 biểu đồ)
+    const chartStatsRows = [
+      ['THỐNG KÊ CHI TIẾT TỪ CÁC BIỂU ĐỒ DASHBOARD'],
+      [`Ngày xuất báo cáo: ${new Date().toLocaleDateString('vi-VN')}`],
+      [],
+      ['1. BIỂU ĐỒ CẢM BIẾN (DỮ LIỆU LỊCH SỬ GẦN NHẤT)'],
+      ['Cảm biến', 'Thời gian đo', 'Giá trị đo', 'Đơn vị'],
+      ...(tempDevice ? tempData.map((t: any) => ['Nhiệt độ (' + tempDevice.name + ')', t.time, t.value, '°C']) : []),
+      ...(humDevice ? humidityData.map((h: any) => ['Độ ẩm không khí (' + humDevice.name + ')', h.time, h.value, '%']) : []),
+      ...(soilDevice ? soilData.map((s: any) => ['Độ ẩm đất (' + soilDevice.name + ')', s.time, s.value, '%']) : []),
+      [],
+      ['2. BIỂU ĐỒ PHÂN TÍCH VẬN HÀNH'],
+      ['Chỉ số / Nhóm biểu đồ', 'Phân loại dữ liệu', 'Số lượng', 'Màu sắc biểu đồ'],
+      ...alertTypeData.map(d => ['Mức độ Cảnh báo', d.name, d.value, d.color]),
+      ...scheduleStatusData.map(d => ['Trạng thái Lịch tự động', d.name, d.value, d.color]),
+      ...actionLogData.map(d => ['Tỷ lệ Tự động hóa', d.name, d.value, d.color]),
+      [],
+      ['3. BIỂU ĐỒ PHÂN TÍCH TÀI SẢN'],
+      ['Chỉ số / Nhóm biểu đồ', 'Phân loại dữ liệu', 'Số lượng', 'Màu sắc biểu đồ'],
+      ...deviceStatusData.map(d => ['Trạng thái Thiết bị', d.name, d.value, d.color]),
+      ...fieldStatusData.map(d => ['Tình trạng Cánh đồng', d.name, d.value, d.color]),
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(chartStatsRows), 'Thống kê Biểu đồ');
+
     XLSX.writeFile(wb, `smartfarm-baocao-${new Date().toISOString().slice(0, 10)}.xlsx`);
-  }, [filteredFields, filteredDevices, filteredAlerts, schedules, actionLogs, fields, devices]);
+  }, [
+    filteredFields, filteredDevices, filteredAlerts, schedules, actionLogs, fields, devices,
+    tempDevice, humDevice, soilDevice, tempData, humidityData, soilData,
+    alertTypeData, scheduleStatusData, actionLogData, deviceStatusData, fieldStatusData
+  ]);
 
   // ── TẢI BIỂU ĐỒ THÀNH ẢNH ──────────────────────────────────────────────────
   const downloadChart = async (chartKey: string, name: string) => {
     const ref = chartRefs[chartKey]?.current;
-    if (!ref) return;
+    if (!ref) {
+      console.log('Chart ref not found for:', chartKey);
+      alert('Không tìm thấy biểu đồ để tải xuống');
+      return;
+    }
 
     setDownloadingChart(chartKey);
+    
     try {
-      const canvas = await html2canvas(ref, { backgroundColor: '#ffffff', scale: 2 });
-      const url = canvas.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `bieudo-${name}-${new Date().toISOString().slice(0, 10)}.png`;
-      a.click();
+      console.log('Starting chart capture for:', chartKey);
+      
+      // Sử dụng html-to-image - hỗ trợ CSS hiện đại bao gồm oklch
+      const dataUrl = await toPng(ref, {
+        quality: 1,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+        cacheBust: true,
+        style: {
+          margin: '0',
+          padding: '0',
+        }
+      });
+      
+      console.log('Image created successfully');
+      
+      // Chuyển data URL thành blob
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      
+      console.log('Blob created, size:', blob.size, 'bytes');
+      
+      if (blob.size < 100) {
+        throw new Error('File ảnh quá nhỏ, có thể bị lỗi');
+      }
+      
+      // Tạo URL và download
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `bieudo-${name}-${new Date().toISOString().slice(0, 10)}.png`;
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      console.log('Download triggered successfully');
+      
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 1000);
+      
     } catch (e) {
-      console.error('Chart download error', e);
+      console.error('Chart download error:', e);
+      alert('Không thể tải xuống biểu đồ. Lỗi: ' + (e as Error).message);
     } finally {
-      setDownloadingChart(null);
+      setTimeout(() => {
+        setDownloadingChart(null);
+      }, 500);
     }
   };
-
-  // Sensor cards from filtered devices
-  const sensorCards = useMemo(() =>
-    filteredDevices.filter(d => ['temperature', 'humidity', 'soil_moisture', 'light', 'ph'].includes(d.type) && d.status === 'online'),
-    [filteredDevices]
-  );
-
-  // Chart data from first temperature & humidity sensor of filtered đoạn này....................................................
-  const tempDevice = filteredDevices.find(d => d.type === 'temperature');
-  const humDevice = filteredDevices.find(d => d.type === 'humidity');
-  const soilDevice = filteredDevices.find(d => d.type === 'soil_moisture');
-
-  const tempData = useMemo(() => {
-    if (!tempDevice || !sensorHistories[tempDevice.id]) return [];
-    return sensorHistories[tempDevice.id]
-      .slice(-48) // Last 48 readings (~2 hours if 2.5 min intervals)
-      .filter((_: any, i: number) => i % 4 === 0)
-      .map((l: any) => ({
-        time: new Date(l.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-        value: l.value
-      }));
-  }, [tempDevice?.id, sensorHistories]);
-
-  const humidityData = useMemo(() => {
-    if (!humDevice || !sensorHistories[humDevice.id]) return [];
-    return sensorHistories[humDevice.id]
-      .slice(-48)
-      .filter((_: any, i: number) => i % 4 === 0)
-      .map((l: any) => ({
-        time: new Date(l.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-        value: l.value
-      }));
-  }, [humDevice?.id, sensorHistories]);
-
-  const soilData = useMemo(() => {
-    if (!soilDevice || !sensorHistories[soilDevice.id]) return [];
-    return sensorHistories[soilDevice.id]
-      .slice(-48)
-      .filter((_: any, i: number) => i % 4 === 0)
-      .map((l: any) => ({
-        time: new Date(l.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-        value: l.value
-      }));
-  }, [soilDevice?.id, sensorHistories]);
 
   // Current crop recommendation
   const currentCropType = selectedCrop !== 'all'
@@ -428,9 +528,10 @@ export function DashboardPage() {
           <Icon className="w-5 h-5" style={{ color: iconColor }} /> {title}
         </h3>
         <button
+          type="button"
           onClick={() => downloadChart(chartKey, chartName)}
           disabled={downloadingChart === chartKey}
-          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="Tải biểu đồ thành ảnh PNG"
         >
           <ImageIcon className="w-3.5 h-3.5" />
@@ -472,38 +573,29 @@ export function DashboardPage() {
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-r from-[#1a3a1a]/85 via-[#1a3a1a]/60 to-transparent" />
+              
             </div>
             <div className="relative px-6 lg:px-8 py-7 lg:py-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h1 className="text-white text-xl sm:text-2xl lg:text-3xl mb-1">Dashboard</h1>
                 <p className="text-white/70 text-sm">Tổng quan hệ thống nông trại thông minh</p>
               </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 border border-white/20 rounded-xl backdrop-blur-md sm:ml-auto">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-400"></span>
+          </span>
+          <span className="text-sm font-bold font-mono text-white tracking-wide">
+            {currentTime || '--:--'}
+          </span>
+        </div>
               {canExportReports && (
-                <div className="relative">
-                  <button
-                    onClick={() => setShowExportMenu(!showExportMenu)}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-green-600/90 hover:bg-green-600 text-white rounded-xl backdrop-blur-sm transition-colors text-sm font-medium border border-white/20"
-                  >
-                    <Download className="w-4 h-4" /> Xuất báo cáo Excel
-                  </button>
-                  {showExportMenu && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
-                      <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-lg border z-20 py-1">
-                        <button
-                          onClick={exportExcel}
-                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                        >
-                          <Download className="w-4 h-4 text-green-600" />
-                          Xuất file Excel (.xlsx)
-                        </button>
-                        <div className="px-4 py-2 border-t border-gray-100">
-                          <p className="text-[10px] text-gray-400">File Excel bao gồm 5 sheet: Tổng quan, Cánh đồng, Thiết bị, Cảnh báo, Lịch hẹn</p>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
+                <button
+                  onClick={exportExcel}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-green-600/90 hover:bg-green-600 text-white rounded-xl backdrop-blur-sm transition-colors text-sm font-medium border border-white/20"
+                >
+                  <Download className="w-4 h-4" /> Xuất báo cáo Excel
+                </button>
               )}
             </div>
           </div>
@@ -694,12 +786,7 @@ export function DashboardPage() {
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {tempData.length > 0 && (
-              <div className="farm-card-static p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Thermometer className="w-5 h-5 text-red-500" />
-                  <h3 className="text-gray-800">Nhiệt độ</h3>
-                  <span className="text-xs text-gray-400 ml-auto">{tempDevice?.name}</span>
-                </div>
+              <ChartCard title={`Nhiệt độ (${tempDevice?.name || ''})`} icon={Thermometer} iconColor="#ef4444" chartKey="tempChart" chartName="nhiet-do">
                 <ResponsiveContainer width="100%" height={220}>
                   <AreaChart data={tempData}>
                     <defs>
@@ -715,16 +802,11 @@ export function DashboardPage() {
                     <Area type="monotone" dataKey="value" stroke="#ef4444" fill="url(#tempGrad)" strokeWidth={2} name="°C" />
                   </AreaChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartCard>
             )}
 
             {humidityData.length > 0 && (
-              <div className="farm-card-static p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Droplets className="w-5 h-5 text-blue-500" />
-                  <h3 className="text-gray-800">Độ ẩm không khí</h3>
-                  <span className="text-xs text-gray-400 ml-auto">{humDevice?.name}</span>
-                </div>
+              <ChartCard title={`Độ ẩm không khí (${humDevice?.name || ''})`} icon={Droplets} iconColor="#3b82f6" chartKey="humidityChart" chartName="do-am-khong-khi">
                 <ResponsiveContainer width="100%" height={220}>
                   <AreaChart data={humidityData}>
                     <defs>
@@ -740,16 +822,11 @@ export function DashboardPage() {
                     <Area type="monotone" dataKey="value" stroke="#3b82f6" fill="url(#humGrad)" strokeWidth={2} name="%" />
                   </AreaChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartCard>
             )}
 
             {soilData.length > 0 && (
-              <div className="farm-card-static p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Droplets className="w-5 h-5 text-purple-500" />
-                  <h3 className="text-gray-800">Độ ẩm đất</h3>
-                  <span className="text-xs text-gray-400 ml-auto">{soilDevice?.name}</span>
-                </div>
+              <ChartCard title={`Độ ẩm đất (${soilDevice?.name || ''})`} icon={Droplets} iconColor="#8b5cf6" chartKey="soilChart" chartName="do-am-dat">
                 <ResponsiveContainer width="100%" height={220}>
                   <AreaChart data={soilData}>
                     <defs>
@@ -765,7 +842,7 @@ export function DashboardPage() {
                     <Area type="monotone" dataKey="value" stroke="#8b5cf6" fill="url(#soilGrad)" strokeWidth={2} name="%" />
                   </AreaChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartCard>
             )}
 
             {tempData.length === 0 && humidityData.length === 0 && soilData.length === 0 && (

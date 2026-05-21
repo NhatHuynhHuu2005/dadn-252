@@ -38,58 +38,114 @@ export function FieldsPage() {
   const [filterZone, setFilterZone] = useState('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [thresholdTemp, setThresholdTemp] = useState<{ min: number; max: number }>({ min: 0, max: 100 });
-  const [thresholdHumid, setThresholdHumid] = useState<{ min: number; max: number }>({ min: 0, max: 100 });
-  const [savingThresholds, setSavingThresholds] = useState(false);
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState<string[]>([]);
+  const [detailThresholds, setDetailThresholds] = useState<Record<string, { min: number; max: number; action: string; isActive: boolean; parameter: string }>>({});
+  const [customActionMode, setCustomActionMode] = useState<Record<string, boolean>>({});
+
+  // Danh sách hành động được định nghĩa sẵn
+  const predefinedActions = [
+    'Bật thiết bị',
+    'Tắt thiết bị',
+    'Bật quạt',
+    'Tắt quạt',
+    'Bật máy bơm',
+    'Tắt máy bơm',
+    'Bật đèn',
+    'Tắt đèn',
+    'Bật thiết bị hỗ trợ',
+    'Tắt thiết bị hỗ trợ',
+    'Gửi cảnh báo',
+    'Gửi thông báo khẩn cấp',
+  ];
 
   useEffect(() => {
     if (selectedField) {
       const fieldDevices = devices.filter(d => d.fieldId === selectedField.id);
-      const tempDevice = fieldDevices.find(d => d.type?.toUpperCase() === 'TEMPERATURE');
-      const humidDevice = fieldDevices.find(d => d.type?.toUpperCase() === 'HUMIDITY');
-      
-      if (tempDevice) {
-        const rule = rules.find(r => r.deviceId === tempDevice.id);
-        if (rule) setThresholdTemp({ min: rule.minValue, max: rule.maxValue });
-        else setThresholdTemp({ min: 20, max: 35 });
-      }
-      if (humidDevice) {
-        const rule = rules.find(r => r.deviceId === humidDevice.id);
-        if (rule) setThresholdHumid({ min: rule.minValue, max: rule.maxValue });
-        else setThresholdHumid({ min: 40, max: 80 });
-      }
+      const newDetailThresholds: Record<string, any> = {};
+      fieldDevices.forEach(d => {
+        const rule = rules.find(r => r.deviceId === d.id);
+        newDetailThresholds[d.id] = {
+          min: rule ? rule.minValue : 20,
+          max: rule ? rule.maxValue : 35,
+          action: rule ? rule.action : 'Bật thiết bị hỗ trợ',
+          parameter: rule ? rule.parameter : d.type?.toLowerCase() || 'temperature',
+          isActive: rule ? !!rule.isActive : false
+        };
+      });
+      setDetailThresholds(newDetailThresholds);
     }
   }, [selectedField, devices, rules]);
 
-  const handleSaveThresholds = async () => {
-    if (!selectedField) return;
-    setSavingThresholds(true);
-    const fieldDevices = devices.filter(d => d.fieldId === selectedField.id);
-    const tempDevices = fieldDevices.filter(d => d.type?.toUpperCase() === 'TEMPERATURE');
-    const humidDevices = fieldDevices.filter(d => d.type?.toUpperCase() === 'HUMIDITY');
-    
+  const handleSaveDetailThreshold = async (deviceId: string) => {
+    const thresh = detailThresholds[deviceId];
+    if (!thresh) return;
     try {
-      const savePromises = [];
-      for (const d of tempDevices) {
-        const existing = rules.find(r => r.deviceId === d.id);
-        if (existing) savePromises.push(thresholdApi.update(existing.id, { minValue: thresholdTemp.min, maxValue: thresholdTemp.max }));
-        else savePromises.push(thresholdApi.create({ deviceId: d.id, parameter: 'temperature', minValue: thresholdTemp.min, maxValue: thresholdTemp.max, action: 'Bật bơm/quạt tương ứng' }));
+      const existing = rules.find(r => r.deviceId === deviceId);
+      if (existing) {
+        await thresholdApi.update(existing.id, {
+          minValue: thresh.min,
+          maxValue: thresh.max,
+          action: thresh.action,
+          parameter: thresh.parameter,
+          isActive: thresh.isActive
+        });
+        toast.success('Cập nhật ngưỡng cảnh báo thành công!');
+      } else {
+        await thresholdApi.create({
+          deviceId,
+          parameter: thresh.parameter,
+          minValue: thresh.min,
+          maxValue: thresh.max,
+          action: thresh.action
+        });
+        toast.success('Tạo ngưỡng cảnh báo mới thành công!');
       }
-      for (const d of humidDevices) {
-        const existing = rules.find(r => r.deviceId === d.id);
-        if (existing) savePromises.push(thresholdApi.update(existing.id, { minValue: thresholdHumid.min, maxValue: thresholdHumid.max }));
-        else savePromises.push(thresholdApi.create({ deviceId: d.id, parameter: 'humidity', minValue: thresholdHumid.min, maxValue: thresholdHumid.max, action: 'Bật bơm/quạt tương ứng' }));
-      }
-      
-      await Promise.all(savePromises);
       const newRules = await thresholdApi.getAll().catch(() => []);
       setRules(newRules);
-      toast.success('Đã lưu ngưỡng cảnh báo thành công!');
     } catch (e) {
       console.error(e);
-      toast.error('Có lỗi xảy ra khi lưu ngưỡng cảnh báo!');
-    } finally {
-      setSavingThresholds(false);
+      toast.error('Lỗi khi lưu ngưỡng cảnh báo!');
+    }
+  };
+
+  const handleToggleDetailThreshold = async (deviceId: string, isActive: boolean) => {
+    const existing = rules.find(r => r.deviceId === deviceId);
+    if (!existing) {
+      setDetailThresholds(prev => ({
+        ...prev,
+        [deviceId]: { ...prev[deviceId], isActive }
+      }));
+      return;
+    }
+    try {
+      await thresholdApi.update(existing.id, {
+        ...existing,
+        isActive: isActive
+      });
+      setDetailThresholds(prev => ({
+        ...prev,
+        [deviceId]: { ...prev[deviceId], isActive }
+      }));
+      const newRules = await thresholdApi.getAll().catch(() => []);
+      setRules(newRules);
+      toast.success(isActive ? 'Đã kích hoạt ngưỡng!' : 'Đã tắt ngưỡng!');
+    } catch (e) {
+      console.error(e);
+      toast.error('Lỗi khi cập nhật trạng thái ngưỡng!');
+    }
+  };
+
+  const handleDeleteDetailThreshold = async (deviceId: string) => {
+    const existing = rules.find(r => r.deviceId === deviceId);
+    if (!existing) return;
+    try {
+      await thresholdApi.delete(existing.id);
+      const newRules = await thresholdApi.getAll().catch(() => []);
+      setRules(newRules);
+      toast.success('Đã xóa ngưỡng cảnh báo!');
+    } catch (e) {
+      console.error(e);
+      toast.error('Lỗi khi xóa ngưỡng cảnh báo!');
     }
   };
 
@@ -122,6 +178,7 @@ export function FieldsPage() {
     setEditingField(null);
     setForm({ name: '', location: '', area: '', cropType: '', status: 'active', image: '', zoneCode: '' });
     setFormError('');
+    setSelectedDeviceIds([]);
     setImageInputMode('gallery');
     setShowModal(true);
   };
@@ -131,6 +188,9 @@ export function FieldsPage() {
     setEditingField(f);
     setForm({ name: f.name, location: f.location, area: String(f.area), cropType: f.cropType, status: f.status, image: f.image || '', zoneCode: f.zoneCode || '' });
     setFormError('');
+    const fieldDevices = devices.filter(d => d.fieldId === f.id);
+    const initialIds = fieldDevices.map(d => d.id);
+    setSelectedDeviceIds(initialIds);
     setImageInputMode(f.image ? 'url' : 'gallery');
     setShowModal(true);
   };
@@ -151,17 +211,58 @@ export function FieldsPage() {
         zoneCode: form.zoneCode || undefined,
       };
   
+      let savedField: Field;
       if (editingField) {
-        const updated = await fieldApi.update(editingField.id, fieldData);
-        setFieldList(prev => prev.map(f => f.id === editingField.id ? updated : f));
-        if (selectedField?.id === editingField.id) setSelectedField(updated);
+        savedField = await fieldApi.update(editingField.id, fieldData);
+        setFieldList(prev => prev.map(f => f.id === editingField.id ? savedField : f));
+        if (selectedField?.id === editingField.id) setSelectedField(savedField);
       } else {
-        // Gọi API tạo cánh đồng mới
-        const created = await fieldApi.create(fieldData);
-        setFieldList(prev => [created, ...prev]);
+        savedField = await fieldApi.create(fieldData);
+        setFieldList(prev => [savedField, ...prev]);
       }
+      
+      const fieldId = savedField.id;
+
+      // Update devices and thresholds
+      const devicePromises = [];
+      const thresholdPromises = [];
+
+      // 1. Devices that are checked in the modal
+      const devicesToAssign = devices.filter(d => selectedDeviceIds.includes(d.id));
+      for (const d of devicesToAssign) {
+        if (d.fieldId !== fieldId) {
+          devicePromises.push(deviceApi.update(d.id, { ...d, fieldId }));
+        }
+      }
+
+      // 2. Devices that were previously in this field, but are now UNCHECKED (deselected)
+      // Note: when editingField is null (adding new field), there are no previous devices, so devicesToUnassign will be empty.
+      const devicesToUnassign = devices.filter(d => d.fieldId === fieldId && !selectedDeviceIds.includes(d.id));
+      for (const d of devicesToUnassign) {
+        devicePromises.push(deviceApi.update(d.id, { ...d, fieldId: null as any }));
+        // Also delete their threshold rules
+        const rule = rules.find(r => r.deviceId === d.id);
+        if (rule) {
+          thresholdPromises.push(thresholdApi.delete(rule.id).catch(() => {}));
+        }
+      }
+
+      await Promise.all([...devicePromises, ...thresholdPromises]);
+
+      const [updatedDevices, updatedRules] = await Promise.all([
+        deviceApi.getAll(),
+        thresholdApi.getAll().catch(() => [])
+      ]);
+      setDevices(updatedDevices);
+      setRules(updatedRules);
+
+      // Nếu đang xem chi tiết cánh đồng vừa sửa, cập nhật lại selectedField
+      if (selectedField?.id === savedField.id) setSelectedField(savedField);
+
       setShowModal(false);
+      toast.success('Đã lưu cánh đồng và cập nhật thiết bị thành công!');
     } catch (err) {
+      console.error(err);
       setFormError('Lỗi kết nối server khi lưu cánh đồng');
     }
   };
@@ -338,6 +439,51 @@ export function FieldsPage() {
               />
             </div>
             {renderImageSection()}
+            
+            <div className="border-t border-gray-100 pt-4">
+              <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider">
+                Thiết bị ({selectedDeviceIds.length})
+              </label>
+              <p className="text-[11px] text-gray-400 mb-3">
+                Chọn thiết bị từ hệ thống để gán vào cánh đồng này. Cấu hình ngưỡng cảnh báo có thể thực hiện trong trang chi tiết cánh đồng.
+              </p>
+              
+              <div className="max-h-60 overflow-y-auto space-y-2 border border-gray-200 rounded-xl p-3 bg-gray-50/50">
+                {devices.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic text-center py-4">Không có thiết bị nào trong hệ thống</p>
+                ) : (
+                  devices.map(d => {
+                    const isChecked = selectedDeviceIds.includes(d.id);
+                    const currentField = fieldList.find(f => f.id === d.fieldId);
+                    
+                    return (
+                      <div key={d.id} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                        <label className="flex items-start gap-2.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedDeviceIds(prev => [...prev, d.id]);
+                              } else {
+                                setSelectedDeviceIds(prev => prev.filter(id => id !== d.id));
+                              }
+                            }}
+                            className="mt-1 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-gray-800 truncate">{d.name}</p>
+                            <p className="text-[10px] text-gray-400">
+                              Loại: {d.type} {currentField && currentField.id !== editingField?.id ? `• Đang ở: ${currentField.name}` : currentField ? '• Đang trong cánh đồng này' : '• Chưa gán'}
+                            </p>
+                          </div>
+                        </label>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
           </div>
           <div className="flex gap-3 mt-7">
             <button onClick={() => setShowModal(false)} className="btn-ghost flex-1 justify-center">Hủy</button>
@@ -422,67 +568,173 @@ export function FieldsPage() {
             <div className="mt-6">
               <h3 className="text-gray-800 mb-3">Thiết bị ({fieldDevices.length})</h3>
               {fieldDevices.length === 0 ? (
-                <p className="text-sm text-gray-400">Chua co thiet bi nao trong canh dong nay</p>
+                <p className="text-sm text-gray-400">Chưa có thiết bị nào trong cánh đồng này</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {fieldDevices.map(d => (
                     <div key={d.id} className="flex items-center gap-3 p-3.5 bg-[#f8faf8] rounded-xl border border-green-50 transition-all hover:shadow-sm">
                       <span className={`w-2.5 h-2.5 rounded-full ${d.status === 'online' ? 'bg-green-500 shadow-sm shadow-green-300' : d.status === 'offline' ? 'bg-gray-300' : 'bg-red-500'}`} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-800 truncate">{d.name}</p>
-                        <p className="text-xs text-gray-500">{d.type} {d.lastValue !== undefined ? `- ${d.lastValue}${d.unit}` : ''}</p>
+                        <p className="text-sm font-semibold text-gray-800 truncate">{d.name}</p>
+                        <p className="text-xs text-gray-400 mt-0.5 uppercase tracking-wider font-semibold text-[10px]">{d.type} {d.unit ? `(${d.unit})` : ''}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            {canManageThresholds && (fieldDevices.some(d => d.type?.toUpperCase() === 'TEMPERATURE') || fieldDevices.some(d => d.type?.toUpperCase() === 'HUMIDITY')) && (
+
+            {canManageThresholds && fieldDevices.length > 0 && (
               <div className="mt-6 pt-6 border-t border-gray-100">
                 <div className="flex items-center gap-2 mb-4">
-                  <Sliders className="w-5 h-5 text-gray-400" />
-                  <h3 className="text-gray-800">Ngưỡng cảnh báo môi trường</h3>
+                  <Sliders className="w-5 h-5 text-green-600" />
+                  <h3 className="text-gray-800">Cấu hình Ngưỡng Cảnh báo & Vận hành Tự động</h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#f8faf8] p-5 rounded-xl border border-green-50">
-                  {fieldDevices.some(d => d.type?.toUpperCase() === 'TEMPERATURE') && (
-                    <div className="space-y-3">
-                      <p className="text-sm font-semibold text-gray-700 flex items-center justify-between">
-                        <span>Nhiệt độ (°C)</span>
-                      </p>
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1">
-                          <label className="text-xs text-gray-500 mb-1 block">Tối thiểu</label>
-                          <input type="number" className="form-input text-sm" value={thresholdTemp.min} onChange={e => setThresholdTemp(p => ({ ...p, min: Number(e.target.value) }))} />
+                <div className="space-y-4">
+                  {fieldDevices.map(d => {
+                    const rule = rules.find(r => r.deviceId === d.id);
+                    const thresh = detailThresholds[d.id] || { min: 20, max: 35, action: 'Bật thiết bị hỗ trợ', parameter: d.type?.toLowerCase() || 'temperature', isActive: false };
+                    
+                    return (
+                      <div key={d.id} className="bg-[#f8faf8] p-4 rounded-2xl border border-green-50/80 flex flex-col xl:flex-row xl:items-center justify-between gap-4 transition-all hover:bg-green-50/10">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`w-2 h-2 rounded-full ${d.status === 'online' ? 'bg-green-500 shadow-sm shadow-green-300' : 'bg-red-500'}`} />
+                            <h4 className="text-sm font-semibold text-gray-800 truncate">{d.name}</h4>
+                            <span className="text-[10px] bg-green-100/70 text-green-700 px-2 py-0.5 rounded-full font-medium uppercase tracking-wider">{d.type}</span>
+                          </div>
+                          {rule ? (
+                            <p className="text-xs text-gray-500 mt-1.5">
+                              Ngưỡng an toàn: <span className="font-semibold text-green-700">{rule.minValue} - {rule.maxValue} {d.unit || ''}</span> • Hành động: <span className="italic text-gray-600">"{rule.action}"</span> • Trạng thái: <span className={`font-semibold ${rule.isActive ? 'text-green-600' : 'text-gray-400'}`}>{rule.isActive ? 'Đang bật' : 'Đang tắt'}</span>
+                            </p>
+                          ) : (
+                            <p className="text-xs text-gray-400 mt-1.5 italic">Chưa cấu hình ngưỡng cảnh báo cho thiết bị này</p>
+                          )}
                         </div>
-                        <div className="flex-1">
-                          <label className="text-xs text-gray-500 mb-1 block">Tối đa</label>
-                          <input type="number" className="form-input text-sm" value={thresholdTemp.max} onChange={e => setThresholdTemp(p => ({ ...p, max: Number(e.target.value) }))} />
+
+                        <div className="flex flex-wrap items-center gap-3.5 pt-2 xl:pt-0 border-t xl:border-t-0 border-gray-100">
+                          {rule && (
+                            <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={thresh.isActive}
+                                onChange={(e) => handleToggleDetailThreshold(d.id, e.target.checked)}
+                                className="rounded border-gray-300 text-green-600 focus:ring-green-500 w-4 h-4 cursor-pointer"
+                              />
+                              <span className="font-medium">Kích hoạt</span>
+                            </label>
+                          )}
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="w-20">
+                              <label className="text-[9px] text-gray-400 block mb-0.5 font-medium uppercase tracking-wider">Tối thiểu</label>
+                              <input
+                                type="number"
+                                placeholder="Min"
+                                className="form-input py-1 px-2.5 text-xs text-center rounded-lg"
+                                value={thresh.min}
+                                onChange={(e) => {
+                                  const val = Number(e.target.value);
+                                  setDetailThresholds(prev => ({
+                                    ...prev,
+                                    [d.id]: { ...prev[d.id], min: val }
+                                  }));
+                                }}
+                              />
+                            </div>
+                            <span className="text-gray-300 text-xs mt-4 font-semibold">-</span>
+                            <div className="w-20">
+                              <label className="text-[9px] text-gray-400 block mb-0.5 font-medium uppercase tracking-wider">Tối đa</label>
+                              <input
+                                type="number"
+                                placeholder="Max"
+                                className="form-input py-1 px-2.5 text-xs text-center rounded-lg"
+                                value={thresh.max}
+                                onChange={(e) => {
+                                  const val = Number(e.target.value);
+                                  setDetailThresholds(prev => ({
+                                    ...prev,
+                                    [d.id]: { ...prev[d.id], max: val }
+                                  }));
+                                }}
+                              />
+                            </div>
+                            <div className="w-44">
+                              <label className="text-[9px] text-gray-400 block mb-0.5 font-medium uppercase tracking-wider">Hành động</label>
+                              
+                              {!customActionMode[d.id] ? (
+                                <div className="space-y-1">
+                                  <CustomSelect
+                                    value={thresh.action}
+                                    onChange={(val) => {
+                                      setDetailThresholds(prev => ({
+                                        ...prev,
+                                        [d.id]: { ...prev[d.id], action: val }
+                                      }));
+                                    }}
+                                    options={predefinedActions.map(a => ({ value: a, label: a }))}
+                                    placeholder="Chọn..."
+                                    className="text-xs"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setCustomActionMode(prev => ({ ...prev, [d.id]: true }))}
+                                    className="text-[9px] text-blue-600 hover:text-blue-700 hover:underline"
+                                  >
+                                    + Tùy chỉnh
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="space-y-1">
+                                  <input
+                                    type="text"
+                                    placeholder="VD: Bật máy bơm nước..."
+                                    className="form-input py-1 px-2.5 text-xs rounded-lg"
+                                    value={thresh.action}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setDetailThresholds(prev => ({
+                                        ...prev,
+                                        [d.id]: { ...prev[d.id], action: val }
+                                      }));
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCustomActionMode(prev => ({ ...prev, [d.id]: false }));
+                                      setDetailThresholds(prev => ({
+                                        ...prev,
+                                        [d.id]: { ...prev[d.id], action: '' }
+                                      }));
+                                    }}
+                                    className="text-[9px] text-gray-600 hover:text-gray-700 hover:underline"
+                                  >
+                                    ← Chọn từ danh sách
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleSaveDetailThreshold(d.id)}
+                              className="px-3.5 py-1.5 mt-3.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-all flex items-center gap-1.5 shadow-sm hover:shadow active:scale-95"
+                            >
+                              <Save className="w-3.5 h-3.5" /> Lưu
+                            </button>
+                            {rule && (
+                              <button
+                                onClick={() => handleDeleteDetailThreshold(d.id)}
+                                className="p-1.5 mt-3.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors"
+                                title="Xóa ngưỡng"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                  {fieldDevices.some(d => d.type?.toUpperCase() === 'HUMIDITY') && (
-                    <div className="space-y-3">
-                      <p className="text-sm font-semibold text-gray-700 flex items-center justify-between">
-                        <span>Độ ẩm (%)</span>
-                      </p>
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1">
-                          <label className="text-xs text-gray-500 mb-1 block">Tối thiểu</label>
-                          <input type="number" className="form-input text-sm" value={thresholdHumid.min} onChange={e => setThresholdHumid(p => ({ ...p, min: Number(e.target.value) }))} />
-                        </div>
-                        <div className="flex-1">
-                          <label className="text-xs text-gray-500 mb-1 block">Tối đa</label>
-                          <input type="number" className="form-input text-sm" value={thresholdHumid.max} onChange={e => setThresholdHumid(p => ({ ...p, max: Number(e.target.value) }))} />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="mt-4 flex justify-end">
-                  <button onClick={handleSaveThresholds} disabled={savingThresholds} className="btn-primary" style={{ padding: '8px 20px', fontSize: '13px' }}>
-                    <Save className="w-4 h-4" /> {savingThresholds ? 'Đang lưu...' : 'Lưu ngưỡng cảnh báo'}
-                  </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

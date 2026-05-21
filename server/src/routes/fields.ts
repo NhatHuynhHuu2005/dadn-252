@@ -3,6 +3,10 @@ import { getAsync, allAsync, runAsync } from '../db/connection.js';
 
 const router = Router();
 
+// Helper: normalize field status to lowercase
+const normalizeField = (f: any) => f ? { ...f, status: f.status?.toLowerCase() ?? f.status } : f;
+const normalizeFields = (arr: any[]) => arr.map(normalizeField);
+
 // Get all fields
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -18,7 +22,7 @@ router.get('/', async (req: Request, res: Response) => {
     query += ' ORDER BY createdAt DESC';
     
     const fields = await allAsync(query, params);
-    res.json(fields);
+    res.json(normalizeFields(fields));
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch fields' });
   }
@@ -33,7 +37,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     // Get devices for this field
     const devices = await allAsync('SELECT * FROM devices WHERE fieldId = ?', [req.params.id]);
     
-    res.json({ ...field, devices });
+    res.json({ ...normalizeField(field), devices });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch field' });
   }
@@ -42,17 +46,17 @@ router.get('/:id', async (req: Request, res: Response) => {
 // Create field
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { id, name, location, area, cropType, status, image, zoneCode } = req.body;
+    const { id, name, location, area, cropType, status, image, zoneCode, userId } = req.body;
     const newId = id || `fld_${Date.now()}`;
 
     await runAsync(
-      `INSERT INTO fields (id, name, location, area, cropType, status, image, zoneCode)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [newId, name, location, area, cropType, status || 'ACTIVE', image || null, zoneCode || null]
+      `INSERT INTO fields (id, name, location, area, cropType, status, image, zoneCode, userId)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [newId, name, location, area, cropType, status || 'active', image || null, zoneCode || null, userId || null]
     );
 
     const field = await getAsync('SELECT * FROM fields WHERE id = ?', [newId]);
-    res.status(201).json(field);
+    res.status(201).json(normalizeField(field));
   } catch (error) {
     res.status(500).json({ error: 'Failed to create field' });
   }
@@ -61,15 +65,15 @@ router.post('/', async (req: Request, res: Response) => {
 // Update field
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const { name, location, area, cropType, status, image, zoneCode } = req.body;
+    const { name, location, area, cropType, status, image, zoneCode, userId } = req.body;
     await runAsync(
-      `UPDATE fields SET name = ?, location = ?, area = ?, cropType = ?, status = ?, image = ?, zoneCode = ?, updatedAt = CURRENT_TIMESTAMP
+      `UPDATE fields SET name = ?, location = ?, area = ?, cropType = ?, status = ?, image = ?, zoneCode = ?, userId = ?, updatedAt = CURRENT_TIMESTAMP
       WHERE id = ?`,
-      [name, location, area, cropType, status, image || null, zoneCode || null, req.params.id]
+      [name, location, area, cropType, status, image || null, zoneCode || null, userId || null, req.params.id]
     );
 
     const field = await getAsync('SELECT * FROM fields WHERE id = ?', [req.params.id]);
-    res.json(field);
+    res.json(normalizeField(field));
   } catch (error) {
     res.status(500).json({ error: 'Failed to update field' });
   }

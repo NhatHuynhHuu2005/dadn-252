@@ -51,7 +51,7 @@ export async function runMigration() {
       CREATE TABLE devices (
         id NVARCHAR(50) PRIMARY KEY,
         name NVARCHAR(100) NOT NULL,
-        fieldId NVARCHAR(50) NOT NULL,
+        fieldId NVARCHAR(50) NULL,
         type NVARCHAR(50),
         status NVARCHAR(20) DEFAULT 'ACTIVE',
         lastValue FLOAT,

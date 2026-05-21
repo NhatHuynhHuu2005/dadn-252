@@ -20,6 +20,19 @@ export function SchedulesPage() {
   const [loading, setLoading] = useState(true);
   const [filterFieldId, setFilterFieldId] = useState('all');
 
+  // State cho schedule builder
+  const [scheduleType, setScheduleType] = useState<'daily' | 'weekly' | 'monthly' | 'custom'>('daily');
+  const [hour, setHour] = useState('6');
+  const [minute, setMinute] = useState('0');
+  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]); // Thứ 2-6
+  const [dayOfMonth, setDayOfMonth] = useState('1');
+  
+  // State cho auto-off
+  const [autoOff, setAutoOff] = useState(false);
+  const [autoOffDuration, setAutoOffDuration] = useState<'15min' | '30min' | '1hour' | '2hour' | 'custom'>('30min');
+  const [customOffHours, setCustomOffHours] = useState('0');
+  const [customOffMinutes, setCustomOffMinutes] = useState('30');
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -44,10 +57,103 @@ export function SchedulesPage() {
   // Lọc thiết bị: Bao gồm cả chữ 'control' hoặc 'CONTROL' từ DB
   const actuators = devices.filter(d => ['pump', 'valve', 'fan', 'control'].includes((d.type || '').toLowerCase()));
 
+  // Hàm chuyển đổi schedule builder thành cron expression
+  const buildCronExpression = () => {
+    const h = hour.padStart(2, '0');
+    const m = minute.padStart(2, '0');
+    
+    switch (scheduleType) {
+      case 'daily':
+        return `${m} ${h} * * *`; // Mỗi ngày
+      case 'weekly':
+        if (selectedDays.length === 0) return `${m} ${h} * * *`;
+        return `${m} ${h} * * ${selectedDays.sort().join(',')}`; // Các thứ đã chọn
+      case 'monthly':
+        return `${m} ${h} ${dayOfMonth} * *`; // Ngày cụ thể mỗi tháng
+      case 'custom':
+        return form.cronExpression; // Nhập tay
+      default:
+        return `${m} ${h} * * *`;
+    }
+  };
+
+  // Hàm tính thời gian tắt
+  const calculateOffTime = () => {
+    let offsetMinutes = 0;
+    
+    if (autoOffDuration === '15min') offsetMinutes = 15;
+    else if (autoOffDuration === '30min') offsetMinutes = 30;
+    else if (autoOffDuration === '1hour') offsetMinutes = 60;
+    else if (autoOffDuration === '2hour') offsetMinutes = 120;
+    else if (autoOffDuration === 'custom') {
+      offsetMinutes = parseInt(customOffHours) * 60 + parseInt(customOffMinutes);
+    }
+    
+    const startMinutes = parseInt(hour) * 60 + parseInt(minute);
+    const endMinutes = (startMinutes + offsetMinutes) % 1440; // 1440 = 24*60
+    
+    const offHour = Math.floor(endMinutes / 60);
+    const offMinute = endMinutes % 60;
+    
+    return {
+      hour: offHour.toString().padStart(2, '0'),
+      minute: offMinute.toString().padStart(2, '0'),
+      offsetMinutes
+    };
+  };
+
+  // Hàm build cron cho lịch tắt
+  const buildOffCronExpression = () => {
+    const { hour: offH, minute: offM } = calculateOffTime();
+    
+    switch (scheduleType) {
+      case 'daily':
+        return `${offM} ${offH} * * *`;
+      case 'weekly':
+        if (selectedDays.length === 0) return `${offM} ${offH} * * *`;
+        return `${offM} ${offH} * * ${selectedDays.sort().join(',')}`;
+      case 'monthly':
+        return `${offM} ${offH} ${dayOfMonth} * *`;
+      case 'custom':
+        return form.cronExpression; // Không hỗ trợ auto-off cho custom
+      default:
+        return `${offM} ${offH} * * *`;
+    }
+  };
+
+  // Hàm parse cron expression thành schedule builder (khi edit)
+  const parseCronToBuilder = (cron: string) => {
+    const parts = cron.split(' ');
+    if (parts.length < 5) return;
+    
+    const [m, h, day, month, dow] = parts;
+    setMinute(m);
+    setHour(h);
+    
+    if (dow !== '*') {
+      setScheduleType('weekly');
+      setSelectedDays(dow.split(',').map(d => parseInt(d)));
+    } else if (day !== '*') {
+      setScheduleType('monthly');
+      setDayOfMonth(day);
+    } else {
+      setScheduleType('daily');
+    }
+  };
+
   const openAdd = () => {
     if (isReadOnly) return;
     setEditingSchedule(null);
     setForm({ name: '', fieldId: fields[0]?.id || '', deviceId: '', action: 'on', cronExpression: '0 6 * * *', isActive: true });
+    setScheduleType('daily');
+    setHour('6');
+    setMinute('0');
+    setSelectedDays([1, 2, 3, 4, 5]);
+    setDayOfMonth('1');
+    setAutoOff(false);
+    setAutoOffDuration('30min');
+    setCustomOffHours('0');
+    setCustomOffMinutes('30');
     setFormError('');
     setShowModal(true);
   };
@@ -56,6 +162,7 @@ export function SchedulesPage() {
     if (isReadOnly) return;
     setEditingSchedule(s);
     setForm({ name: s.name, fieldId: s.fieldId || '', deviceId: s.deviceId || '', action: s.action as 'on' | 'off', cronExpression: s.cronExpression, isActive: s.isActive });
+    parseCronToBuilder(s.cronExpression);
     setFormError('');
     setShowModal(true);
   };
@@ -65,16 +172,43 @@ export function SchedulesPage() {
     if (!form.name) { setFormError('Vui lòng nhập tên lịch hẹn'); return; }
     if (!form.fieldId) { setFormError('Vui lòng chọn cánh đồng'); return; }
     if (!form.deviceId) { setFormError('Vui lòng chọn thiết bị'); return; }
-    if (!form.cronExpression) { setFormError('Vui lòng nhập cron expression'); return; }
+    
+    // Build cron expression từ schedule builder
+    const cronExpression = scheduleType === 'custom' ? form.cronExpression : buildCronExpression();
+    
+    if (!cronExpression) { setFormError('Vui lòng cấu hình lịch trình'); return; }
 
     try {
+      const payload = { ...form, cronExpression };
+      
       if (editingSchedule) {
-        const updated = await scheduleApi.update(editingSchedule.id, form);
+        const updated = await scheduleApi.update(editingSchedule.id, payload);
         setScheduleList(prev => prev.map(s => s.id === editingSchedule.id ? updated : s));
         if(selectedSchedule?.id === editingSchedule.id) setSelectedSchedule(updated);
       } else {
-        const created = await scheduleApi.create(form);
+        // Tạo lịch BẬT
+        const created = await scheduleApi.create(payload);
         setScheduleList(prev => [created, ...prev]);
+        
+        // Nếu có auto-off và action là 'on', tạo thêm lịch TẮT
+        if (autoOff && form.action === 'on' && scheduleType !== 'custom') {
+          const offCron = buildOffCronExpression();
+          const { offsetMinutes } = calculateOffTime();
+          
+          const offPayload = {
+            name: `${form.name} (Tự động tắt)`,
+            fieldId: form.fieldId,
+            deviceId: form.deviceId,
+            action: 'off',
+            cronExpression: offCron,
+            isActive: true
+          };
+          
+          const offSchedule = await scheduleApi.create(offPayload);
+          setScheduleList(prev => [offSchedule, ...prev]);
+          
+          console.log(`Created auto-off schedule after ${offsetMinutes} minutes`);
+        }
       }
       setShowModal(false);
     } catch (error) {
@@ -195,7 +329,372 @@ export function SchedulesPage() {
             </div>
           )}
         </div>
-        <ConfirmDialog open={!isReadOnly && !!deleteTarget} title="Xóa lịch hẹn" message="Bạn có chắc chắn muốn xóa lịch hẹn này? Thiết bị sẽ không tự động bật/tắt theo lịch này nữa." onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} confirmLabel="Xóa" />
+        
+        {/* Modal và Dialog vẫn hiển thị khi đang ở detail view */}
+        {showModal && !isReadOnly && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <div className="flex items-center justify-between mb-6">
+                <h2>{editingSchedule ? 'Sửa lịch hẹn' : 'Thêm lịch hẹn'}</h2>
+                <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
+              </div>
+              {formError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">{formError}</div>}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Tên lịch *</label>
+                  <input value={form.name} onChange={e => { setForm(p => ({ ...p, name: e.target.value })); setFormError(''); }} className="form-input" />
+                </div>
+                
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Cánh đồng *</label>
+                  <CustomSelect
+                    value={form.fieldId}
+                    onChange={v => {
+                      setForm(p => ({ ...p, fieldId: v, deviceId: '' }));
+                      setFormError('');
+                    }}
+                    options={fields.map(f => ({ value: f.id, label: f.name }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Thiết bị *</label>
+                  <CustomSelect
+                    value={form.deviceId}
+                    onChange={v => { setForm(p => ({ ...p, deviceId: v })); setFormError(''); }}
+                    options={actuators.filter(d => d.fieldId === form.fieldId).map(d => ({ value: d.id, label: d.name }))}
+                  />
+                  {actuators.filter(d => d.fieldId === form.fieldId).length === 0 && form.fieldId !== '' && (
+                    <p className="text-xs text-red-500 mt-1">Cánh đồng này không có thiết bị điều khiển nào!</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Hành động *</label>
+                  <CustomSelect
+                    value={form.action}
+                    onChange={v => {
+                      setForm(p => ({ ...p, action: v as 'on' | 'off' }));
+                      if (v === 'off') setAutoOff(false);
+                    }}
+                    options={[
+                      { value: 'on', label: 'Bật' },
+                      { value: 'off', label: 'Tắt' },
+                    ]}
+                  />
+                </div>
+
+                {/* Auto-off option (chỉ hiện khi action = 'on') */}
+                {form.action === 'on' && scheduleType !== 'custom' && (
+                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={autoOff}
+                        onChange={e => setAutoOff(e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Tự động tắt sau một khoảng thời gian</span>
+                    </label>
+
+                    {autoOff && (
+                      <div className="mt-3 space-y-3">
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { value: '15min', label: '15 phút' },
+                            { value: '30min', label: '30 phút' },
+                            { value: '1hour', label: '1 giờ' },
+                            { value: '2hour', label: '2 giờ' },
+                            { value: 'custom', label: 'Tùy chỉnh' },
+                          ].map(duration => (
+                            <button
+                              key={duration.value}
+                              type="button"
+                              onClick={() => setAutoOffDuration(duration.value as any)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                autoOffDuration === duration.value
+                                  ? 'bg-blue-600 text-white shadow'
+                                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                              }`}
+                            >
+                              {duration.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {autoOffDuration === 'custom' && (
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1">
+                              <label className="block text-xs text-gray-500 mb-1">Giờ</label>
+                              <input
+                                type="number"
+                                min="0"
+                                max="23"
+                                value={customOffHours}
+                                onChange={e => setCustomOffHours(e.target.value)}
+                                className="form-input text-sm"
+                              />
+                            </div>
+                            <span className="text-gray-400 mt-5">:</span>
+                            <div className="flex-1">
+                              <label className="block text-xs text-gray-500 mb-1">Phút</label>
+                              <input
+                                type="number"
+                                min="0"
+                                max="59"
+                                value={customOffMinutes}
+                                onChange={e => setCustomOffMinutes(e.target.value)}
+                                className="form-input text-sm"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="p-2 bg-white rounded-lg border border-blue-200">
+                          <p className="text-xs text-gray-600">
+                            ⏰ Thiết bị sẽ tự động tắt lúc: <span className="font-semibold text-blue-600">{calculateOffTime().hour}:{calculateOffTime().minute}</span>
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Schedule Builder */}
+                <div className="space-y-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <label className="block text-xs text-gray-700 font-semibold uppercase tracking-wider">Lịch trình *</label>
+                  
+                  {/* Chọn loại lịch với icon và mô tả */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {[
+                      { 
+                        value: 'daily', 
+                        label: 'Hàng ngày', 
+                        icon: '📅',
+                        desc: 'Chạy mỗi ngày vào giờ cố định'
+                      },
+                      { 
+                        value: 'weekly', 
+                        label: 'Hàng tuần', 
+                        icon: '📆',
+                        desc: 'Chọn các thứ trong tuần'
+                      },
+                      { 
+                        value: 'monthly', 
+                        label: 'Hàng tháng', 
+                        icon: '🗓️',
+                        desc: 'Chạy vào ngày cụ thể mỗi tháng'
+                      },
+                    ].map(type => (
+                      <button
+                        key={type.value}
+                        type="button"
+                        onClick={() => setScheduleType(type.value as any)}
+                        className={`p-3 rounded-xl text-left transition-all ${
+                          scheduleType === type.value
+                            ? 'bg-green-600 text-white shadow-lg ring-2 ring-green-300'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-green-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xl">{type.icon}</span>
+                          <span className="font-semibold text-sm">{type.label}</span>
+                        </div>
+                        <p className={`text-xs ${scheduleType === type.value ? 'text-green-100' : 'text-gray-500'}`}>
+                          {type.desc}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Link chuyển sang Custom mode */}
+                  {scheduleType !== 'custom' && (
+                    <button
+                      type="button"
+                      onClick={() => setScheduleType('custom')}
+                      className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                    >
+                      ⚙️ Chế độ nâng cao (Nhập cron expression)
+                    </button>
+                  )}
+
+                  {/* Nếu đang ở custom mode */}
+                  {scheduleType === 'custom' && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <span className="text-lg">⚠️</span>
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-yellow-800 mb-1">Chế độ nâng cao</p>
+                          <p className="text-xs text-yellow-700">
+                            Bạn đang sử dụng cron expression. Chỉ dành cho người dùng có kinh nghiệm.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setScheduleType('daily')}
+                            className="text-xs text-blue-600 hover:underline mt-1"
+                          >
+                            ← Quay lại chế độ đơn giản
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Chọn giờ phút */}
+                  {scheduleType !== 'custom' && (
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-2">Thời gian thực hiện</label>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <label className="block text-xs text-gray-500 mb-1">Giờ</label>
+                          <select
+                            value={hour}
+                            onChange={e => setHour(e.target.value)}
+                            className="form-input text-sm"
+                          >
+                            {Array.from({ length: 24 }, (_, i) => (
+                              <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <span className="text-2xl text-gray-400 mt-5">:</span>
+                        <div className="flex-1">
+                          <label className="block text-xs text-gray-500 mb-1">Phút</label>
+                          <select
+                            value={minute}
+                            onChange={e => setMinute(e.target.value)}
+                            className="form-input text-sm"
+                          >
+                            {Array.from({ length: 60 }, (_, i) => (
+                              <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Chọn thứ (nếu weekly) */}
+                  {scheduleType === 'weekly' && (
+                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <label className="block text-xs text-gray-700 font-semibold mb-2">📆 Chọn các ngày trong tuần</label>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { value: 1, label: 'T2', full: 'Thứ 2' },
+                          { value: 2, label: 'T3', full: 'Thứ 3' },
+                          { value: 3, label: 'T4', full: 'Thứ 4' },
+                          { value: 4, label: 'T5', full: 'Thứ 5' },
+                          { value: 5, label: 'T6', full: 'Thứ 6' },
+                          { value: 6, label: 'T7', full: 'Thứ 7' },
+                          { value: 0, label: 'CN', full: 'Chủ nhật' },
+                        ].map(day => (
+                          <button
+                            key={day.value}
+                            type="button"
+                            onClick={() => {
+                              if (selectedDays.includes(day.value)) {
+                                setSelectedDays(selectedDays.filter(d => d !== day.value));
+                              } else {
+                                setSelectedDays([...selectedDays, day.value]);
+                              }
+                            }}
+                            className={`w-12 h-12 rounded-full text-xs font-bold transition-all ${
+                              selectedDays.includes(day.value)
+                                ? 'bg-green-600 text-white shadow-lg ring-2 ring-green-300'
+                                : 'bg-white text-gray-600 hover:bg-gray-100 border-2 border-gray-300'
+                            }`}
+                            title={day.full}
+                          >
+                            {day.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-600 mt-2">
+                        💡 Chọn nhiều ngày để lịch chạy vào các ngày đó mỗi tuần
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Chọn ngày (nếu monthly) */}
+                  {scheduleType === 'monthly' && (
+                    <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                      <label className="block text-xs text-gray-700 font-semibold mb-2">🗓️ Chọn ngày trong tháng</label>
+                      <select
+                        value={dayOfMonth}
+                        onChange={e => setDayOfMonth(e.target.value)}
+                        className="form-input text-sm w-full"
+                      >
+                        {Array.from({ length: 31 }, (_, i) => (
+                          <option key={i + 1} value={i + 1}>Ngày {i + 1}</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-600 mt-2">
+                        💡 Lịch sẽ chạy vào ngày này mỗi tháng
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Nhập cron tùy chỉnh */}
+                  {scheduleType === 'custom' && (
+                    <div className="p-4 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300">
+                      <label className="block text-xs text-gray-700 font-semibold mb-2">⚙️ Cron Expression (Nâng cao)</label>
+                      <input
+                        value={form.cronExpression}
+                        onChange={e => setForm(p => ({ ...p, cronExpression: e.target.value }))}
+                        className="form-input text-sm font-mono"
+                        placeholder="0 6 * * *"
+                      />
+                      <div className="mt-2 space-y-1 text-xs text-gray-600">
+                        <p>📖 Format: <code className="bg-gray-200 px-1 rounded">phút giờ ngày tháng thứ</code></p>
+                        <p>📝 Ví dụ:</p>
+                        <ul className="ml-4 space-y-0.5">
+                          <li>• <code className="bg-gray-200 px-1 rounded">0 6 * * *</code> = 06:00 hàng ngày</li>
+                          <li>• <code className="bg-gray-200 px-1 rounded">*/30 * * * *</code> = Mỗi 30 phút</li>
+                          <li>• <code className="bg-gray-200 px-1 rounded">0 */2 * * *</code> = Mỗi 2 giờ</li>
+                        </ul>
+                        <p className="mt-2">
+                          🔗 <a href="https://crontab.guru" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                            Dùng crontab.guru để test
+                          </a>
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Preview */}
+                  <div className="p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border-2 border-green-200">
+                    <p className="text-xs text-gray-600 font-semibold mb-2">✨ Xem trước lịch trình:</p>
+                    <p className="text-base text-gray-900 font-bold mb-1">
+                      {scheduleType === 'daily' && `📅 Mỗi ngày lúc ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`}
+                      {scheduleType === 'weekly' && selectedDays.length > 0 && (
+                        `📆 Các ngày ${selectedDays.sort().map(d => ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][d]).join(', ')} lúc ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+                      )}
+                      {scheduleType === 'weekly' && selectedDays.length === 0 && '⚠️ Chưa chọn ngày nào'}
+                      {scheduleType === 'monthly' && `🗓️ Ngày ${dayOfMonth} hàng tháng lúc ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`}
+                      {scheduleType === 'custom' && (form.cronExpression ? `⚙️ ${form.cronExpression}` : '⚠️ Chưa nhập cron expression')}
+                    </p>
+                    <p className="text-xs text-gray-500 font-mono bg-white px-2 py-1 rounded">
+                      Cron: {scheduleType === 'custom' ? (form.cronExpression || '(chưa có)') : buildCronExpression()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 mt-7">
+                <button onClick={() => setShowModal(false)} className="btn-ghost flex-1 justify-center">Hủy</button>
+                <button onClick={handleSave} className="btn-primary flex-1 justify-center">Lưu</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <ConfirmDialog 
+          open={!isReadOnly && !!deleteTarget} 
+          title="Xóa lịch hẹn" 
+          message="Bạn có chắc chắn muốn xóa lịch hẹn này? Thiết bị sẽ không tự động bật/tắt theo lịch này nữa." 
+          onConfirm={confirmDelete} 
+          onCancel={() => setDeleteTarget(null)} 
+          confirmLabel="Xóa" 
+        />
       </div>
     );
   }
@@ -271,15 +770,7 @@ export function SchedulesPage() {
                 <span>{field?.name || 'N/A'}</span>
                 <span>• Hành động: {s.action === 'on' ? 'Bật' : 'Tắt'}</span>
               </div>
-              <div className="flex gap-2 mt-4 pt-3 border-t border-gray-100">
-                <button onClick={e => { e.stopPropagation(); setSelectedSchedule(s); }} className="action-btn view" title="Xem"><Eye className="w-4 h-4" /></button>
-                {!isReadOnly && (
-                  <>
-                    <button onClick={e => { e.stopPropagation(); openEdit(s); }} className="action-btn edit" title="Sửa"><Edit className="w-4 h-4" /></button>
-                    <button onClick={e => { e.stopPropagation(); setDeleteTarget(s.id); }} className="action-btn delete" title="Xóa"><Trash2 className="w-4 h-4" /></button>
-                  </>
-                )}
-              </div>
+              {/* Chỉ giữ nút Xem, bỏ nút Sửa/Xóa */}
             </div>
           );
         })}
@@ -329,17 +820,311 @@ export function SchedulesPage() {
                 <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Hành động *</label>
                 <CustomSelect
                   value={form.action}
-                  onChange={v => setForm(p => ({ ...p, action: v as 'on' | 'off' }))}
+                  onChange={v => {
+                    setForm(p => ({ ...p, action: v as 'on' | 'off' }));
+                    // Reset auto-off nếu chọn 'off'
+                    if (v === 'off') setAutoOff(false);
+                  }}
                   options={[
                     { value: 'on', label: 'Bật' },
                     { value: 'off', label: 'Tắt' },
                   ]}
                 />
               </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Cron Expression *</label>
-                <input value={form.cronExpression} onChange={e => { setForm(p => ({ ...p, cronExpression: e.target.value })); setFormError(''); }} className="form-input" placeholder="0 6 * * *" />
-                <p className="text-xs text-gray-400 mt-1">VD: "0 6 * * *" = 06:00 hàng ngày</p>
+
+              {/* Auto-off option (chỉ hiện khi action = 'on') */}
+              {form.action === 'on' && scheduleType !== 'custom' && (
+                <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={autoOff}
+                      onChange={e => setAutoOff(e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Tự động tắt sau một khoảng thời gian</span>
+                  </label>
+
+                  {autoOff && (
+                    <div className="mt-3 space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { value: '15min', label: '15 phút' },
+                          { value: '30min', label: '30 phút' },
+                          { value: '1hour', label: '1 giờ' },
+                          { value: '2hour', label: '2 giờ' },
+                          { value: 'custom', label: 'Tùy chỉnh' },
+                        ].map(duration => (
+                          <button
+                            key={duration.value}
+                            type="button"
+                            onClick={() => setAutoOffDuration(duration.value as any)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              autoOffDuration === duration.value
+                                ? 'bg-blue-600 text-white shadow'
+                                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                            }`}
+                          >
+                            {duration.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {autoOffDuration === 'custom' && (
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1">
+                            <label className="block text-xs text-gray-500 mb-1">Giờ</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="23"
+                              value={customOffHours}
+                              onChange={e => setCustomOffHours(e.target.value)}
+                              className="form-input text-sm"
+                            />
+                          </div>
+                          <span className="text-gray-400 mt-5">:</span>
+                          <div className="flex-1">
+                            <label className="block text-xs text-gray-500 mb-1">Phút</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="59"
+                              value={customOffMinutes}
+                              onChange={e => setCustomOffMinutes(e.target.value)}
+                              className="form-input text-sm"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="p-2 bg-white rounded-lg border border-blue-200">
+                        <p className="text-xs text-gray-600">
+                          ⏰ Thiết bị sẽ tự động tắt lúc: <span className="font-semibold text-blue-600">{calculateOffTime().hour}:{calculateOffTime().minute}</span>
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Schedule Builder */}
+              <div className="space-y-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <label className="block text-xs text-gray-700 font-semibold uppercase tracking-wider">Lịch trình *</label>
+                
+                {/* Chọn loại lịch với icon và mô tả */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {[
+                    { 
+                      value: 'daily', 
+                      label: 'Hàng ngày', 
+                      icon: '📅',
+                      desc: 'Chạy mỗi ngày vào giờ cố định'
+                    },
+                    { 
+                      value: 'weekly', 
+                      label: 'Hàng tuần', 
+                      icon: '📆',
+                      desc: 'Chọn các thứ trong tuần'
+                    },
+                    { 
+                      value: 'monthly', 
+                      label: 'Hàng tháng', 
+                      icon: '🗓️',
+                      desc: 'Chạy vào ngày cụ thể mỗi tháng'
+                    },
+                  ].map(type => (
+                    <button
+                      key={type.value}
+                      type="button"
+                      onClick={() => setScheduleType(type.value as any)}
+                      className={`p-3 rounded-xl text-left transition-all ${
+                        scheduleType === type.value
+                          ? 'bg-green-600 text-white shadow-lg ring-2 ring-green-300'
+                          : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200 hover:border-green-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xl">{type.icon}</span>
+                        <span className="font-semibold text-sm">{type.label}</span>
+                      </div>
+                      <p className={`text-xs ${scheduleType === type.value ? 'text-green-100' : 'text-gray-500'}`}>
+                        {type.desc}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Link chuyển sang Custom mode */}
+                {scheduleType !== 'custom' && (
+                  <button
+                    type="button"
+                    onClick={() => setScheduleType('custom')}
+                    className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                  >
+                    ⚙️ Chế độ nâng cao (Nhập cron expression)
+                  </button>
+                )}
+
+                {/* Nếu đang ở custom mode */}
+                {scheduleType === 'custom' && (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <span className="text-lg">⚠️</span>
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-yellow-800 mb-1">Chế độ nâng cao</p>
+                        <p className="text-xs text-yellow-700">
+                          Bạn đang sử dụng cron expression. Chỉ dành cho người dùng có kinh nghiệm.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setScheduleType('daily')}
+                          className="text-xs text-blue-600 hover:underline mt-1"
+                        >
+                          ← Quay lại chế độ đơn giản
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Chọn giờ phút */}
+                {scheduleType !== 'custom' && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-2">Thời gian thực hiện</label>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <label className="block text-xs text-gray-500 mb-1">Giờ</label>
+                        <select
+                          value={hour}
+                          onChange={e => setHour(e.target.value)}
+                          className="form-input text-sm"
+                        >
+                          {Array.from({ length: 24 }, (_, i) => (
+                            <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <span className="text-2xl text-gray-400 mt-5">:</span>
+                      <div className="flex-1">
+                        <label className="block text-xs text-gray-500 mb-1">Phút</label>
+                        <select
+                          value={minute}
+                          onChange={e => setMinute(e.target.value)}
+                          className="form-input text-sm"
+                        >
+                          {Array.from({ length: 60 }, (_, i) => (
+                            <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Chọn thứ (nếu weekly) */}
+                {scheduleType === 'weekly' && (
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <label className="block text-xs text-gray-700 font-semibold mb-2">📆 Chọn các ngày trong tuần</label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { value: 1, label: 'T2', full: 'Thứ 2' },
+                        { value: 2, label: 'T3', full: 'Thứ 3' },
+                        { value: 3, label: 'T4', full: 'Thứ 4' },
+                        { value: 4, label: 'T5', full: 'Thứ 5' },
+                        { value: 5, label: 'T6', full: 'Thứ 6' },
+                        { value: 6, label: 'T7', full: 'Thứ 7' },
+                        { value: 0, label: 'CN', full: 'Chủ nhật' },
+                      ].map(day => (
+                        <button
+                          key={day.value}
+                          type="button"
+                          onClick={() => {
+                            if (selectedDays.includes(day.value)) {
+                              setSelectedDays(selectedDays.filter(d => d !== day.value));
+                            } else {
+                              setSelectedDays([...selectedDays, day.value]);
+                            }
+                          }}
+                          className={`w-12 h-12 rounded-full text-xs font-bold transition-all ${
+                            selectedDays.includes(day.value)
+                              ? 'bg-green-600 text-white shadow-lg ring-2 ring-green-300'
+                              : 'bg-white text-gray-600 hover:bg-gray-100 border-2 border-gray-300'
+                          }`}
+                          title={day.full}
+                        >
+                          {day.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-600 mt-2">
+                      💡 Chọn nhiều ngày để lịch chạy vào các ngày đó mỗi tuần
+                    </p>
+                  </div>
+                )}
+
+                {/* Chọn ngày (nếu monthly) */}
+                {scheduleType === 'monthly' && (
+                  <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                    <label className="block text-xs text-gray-700 font-semibold mb-2">🗓️ Chọn ngày trong tháng</label>
+                    <select
+                      value={dayOfMonth}
+                      onChange={e => setDayOfMonth(e.target.value)}
+                      className="form-input text-sm w-full"
+                    >
+                      {Array.from({ length: 31 }, (_, i) => (
+                        <option key={i + 1} value={i + 1}>Ngày {i + 1}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-600 mt-2">
+                      💡 Lịch sẽ chạy vào ngày này mỗi tháng
+                    </p>
+                  </div>
+                )}
+
+                {/* Nhập cron tùy chỉnh */}
+                {scheduleType === 'custom' && (
+                  <div className="p-4 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300">
+                    <label className="block text-xs text-gray-700 font-semibold mb-2">⚙️ Cron Expression (Nâng cao)</label>
+                    <input
+                      value={form.cronExpression}
+                      onChange={e => setForm(p => ({ ...p, cronExpression: e.target.value }))}
+                      className="form-input text-sm font-mono"
+                      placeholder="0 6 * * *"
+                    />
+                    <div className="mt-2 space-y-1 text-xs text-gray-600">
+                      <p>📖 Format: <code className="bg-gray-200 px-1 rounded">phút giờ ngày tháng thứ</code></p>
+                      <p>📝 Ví dụ:</p>
+                      <ul className="ml-4 space-y-0.5">
+                        <li>• <code className="bg-gray-200 px-1 rounded">0 6 * * *</code> = 06:00 hàng ngày</li>
+                        <li>• <code className="bg-gray-200 px-1 rounded">*/30 * * * *</code> = Mỗi 30 phút</li>
+                        <li>• <code className="bg-gray-200 px-1 rounded">0 */2 * * *</code> = Mỗi 2 giờ</li>
+                      </ul>
+                      <p className="mt-2">
+                        🔗 <a href="https://crontab.guru" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                          Dùng crontab.guru để test
+                        </a>
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Preview */}
+                <div className="p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border-2 border-green-200">
+                  <p className="text-xs text-gray-600 font-semibold mb-2">✨ Xem trước lịch trình:</p>
+                  <p className="text-base text-gray-900 font-bold mb-1">
+                    {scheduleType === 'daily' && `📅 Mỗi ngày lúc ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`}
+                    {scheduleType === 'weekly' && selectedDays.length > 0 && (
+                      `📆 Các ngày ${selectedDays.sort().map(d => ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][d]).join(', ')} lúc ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+                    )}
+                    {scheduleType === 'weekly' && selectedDays.length === 0 && '⚠️ Chưa chọn ngày nào'}
+                    {scheduleType === 'monthly' && `🗓️ Ngày ${dayOfMonth} hàng tháng lúc ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`}
+                    {scheduleType === 'custom' && (form.cronExpression ? `⚙️ ${form.cronExpression}` : '⚠️ Chưa nhập cron expression')}
+                  </p>
+                  <p className="text-xs text-gray-500 font-mono bg-white px-2 py-1 rounded">
+                    Cron: {scheduleType === 'custom' ? (form.cronExpression || '(chưa có)') : buildCronExpression()}
+                  </p>
+                </div>
               </div>
             </div>
             <div className="flex gap-3 mt-7">

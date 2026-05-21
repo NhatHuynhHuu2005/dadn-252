@@ -1,6 +1,6 @@
 import { Server as HttpServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
-
+import { publishDeviceControl } from './mqtt_client.js';
 const clients = new Set<WebSocket>();
 const deviceSubscriptions = new Map<string, Set<WebSocket>>();
 
@@ -28,7 +28,22 @@ export function setupWebSocketServer(server: HttpServer): WebSocketServer {
       deviceSubscriptions.get(deviceId)?.add(ws);
       console.log(`Client subscribed to device ${deviceId}`);
     }
+    ws.on('message', (message: string) => {
+      try {
+        const parsed = JSON.parse(message);
+        console.log('[WS DEBUG] Nhận chuỗi từ client:', parsed);
 
+        // Bắt các event điều khiển thiết bị (Ví dụ chuỗi JSON dạng { type: 'control', deviceId: 'dev-012', value: 1 })
+        if (parsed.type === 'control' || parsed.event === 'control') {
+          const { deviceId, value } = parsed;
+          if (deviceId && value !== undefined) {
+            publishDeviceControl(deviceId, Number(value));
+          }
+        }
+      } catch (err) {
+        // Tránh crash ứng dụng nếu UI gửi chuỗi không phải dạng JSON (như chuỗi ping-pong thuần túy)
+      }
+    });
     ws.on('close', () => {
       clients.delete(ws);
       deviceSubscriptions.forEach((set) => set.delete(ws));

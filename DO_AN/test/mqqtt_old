@@ -1,0 +1,123 @@
+#include <WiFi.h>
+#include "Adafruit_MQTT.h"
+#include "Adafruit_MQTT_Client.h"
+#include "global.h"
+
+#define WIFI_SSID "-"
+#define WIFI_PASS "-"
+
+#define AIO_SERVER      "io.adafruit.com"
+#define AIO_SERVERPORT  1883
+
+#define AIO_USERNAME    "-"
+#define AIO_KEY         "-"
+
+WiFiClient client;
+
+Adafruit_MQTT_Client mqtt(
+  &client,
+  AIO_SERVER,
+  AIO_SERVERPORT,
+  AIO_USERNAME,
+  AIO_KEY
+);
+
+// ===== FEED =====
+Adafruit_MQTT_Publish tempFeed(&mqtt, AIO_USERNAME "/feeds/temperature1");
+Adafruit_MQTT_Publish humFeed(&mqtt, AIO_USERNAME "/feeds/humidity1");
+Adafruit_MQTT_Publish soilFeed(&mqtt, AIO_USERNAME "/feeds/soil1");
+Adafruit_MQTT_Publish lightFeed(&mqtt, AIO_USERNAME "/feeds/light1");
+
+Adafruit_MQTT_Subscribe buttonFeed(&mqtt, AIO_USERNAME "/feeds/button1");
+
+// ===== STATE =====
+unsigned long lastSend = 0;
+
+// ===== WIFI =====
+void connectWiFi() {
+  if (WiFi.status() == WL_CONNECTED) return;
+
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+  }
+}
+
+// ===== MQTT =====
+void MQTT_connect() {
+  if (mqtt.connected()) return;
+
+  while (mqtt.connect() != 0) {
+    mqtt.disconnect();
+    delay(2000);
+  }
+}
+
+// ===== TASK =====
+void send_task(void *pvParameters) {
+
+  Serial.begin(115200);
+  mqtt.subscribe(&buttonFeed);
+
+  while (1) {
+
+    connectWiFi();
+    MQTT_connect();
+    mqtt.processPackets(10);
+    mqtt.ping();
+    // ===== BUTTON =====
+    Adafruit_MQTT_Subscribe *subscription;
+    while ((subscription = mqtt.readSubscription(50))) {
+
+      if (subscription == &buttonFeed) {
+
+        String value = (char *)buttonFeed.lastread;
+        value.trim();
+
+        if (xSemaphoreTake(dataMutex, portMAX_DELAY)) {
+
+          if (g_pumpMode != MODE_MANUAL) {
+            g_prevMode = g_pumpMode;
+          }
+
+          g_pumpMode = MODE_MANUAL;
+
+          if (value == "1" || value == "ON") {
+            g_manualPumpOn = true;
+          } else {
+            g_manualPumpOn = false;
+          }
+
+          g_lastManualTime = millis();
+
+          xSemaphoreGive(dataMutex);
+        }
+      }
+    }
+
+    // ===== SEND SENSOR =====
+    if (millis() - lastSend > 8000) {
+
+      float temp, hum;
+      int light, soil;
+
+      if (xSemaphoreTake(dataMutex, portMAX_DELAY)) {
+        temp  = g_temperature;
+        hum   = g_humidity;
+        light = g_light;
+        soil  = g_soilPercent;
+        xSemaphoreGive(dataMutex);
+      }
+
+      tempFeed.publish(temp);
+      humFeed.publish(hum);
+      soilFeed.publish(soil);
+      lightFeed.publish(light);
+
+      lastSend = millis();
+    }
+
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+  }
+}
+

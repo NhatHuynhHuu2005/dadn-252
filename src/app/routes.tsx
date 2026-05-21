@@ -7,7 +7,6 @@ import { DevicesPage } from './pages/DevicesPage';
 import { AlertsPage } from './pages/AlertsPage';
 import { SchedulesPage } from './pages/SchedulesPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { ThresholdSettingsPage } from './pages/ThresholdSettingsPage';
 import { ActionLogsPage } from './pages/ActionLogsPage';
 import { UserManagementPage } from './pages/UserManagementPage';
 
@@ -48,7 +47,6 @@ export const router = createBrowserRouter([
       { path: 'fields', element: <RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'WORKER', 'FARMER']}><FieldsPage /></RoleProtectedRoute> },
       { path: 'devices', element: <RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'WORKER', 'FARMER']}><DevicesPage /></RoleProtectedRoute> },
       { path: 'alerts', element: <RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'WORKER', 'FARMER']}><AlertsPage /></RoleProtectedRoute> },
-      { path: 'alert-thresholds', element: <RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'WORKER']}><ThresholdSettingsPage /></RoleProtectedRoute> },
       { path: 'schedules', element: <RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'WORKER']}><SchedulesPage /></RoleProtectedRoute> },
       { path: 'action-logs', element: <RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><ActionLogsPage /></RoleProtectedRoute> },
       { path: 'users', element: <RoleProtectedRoute allowedRoles={['ADMIN']}><UserManagementPage /></RoleProtectedRoute> },

@@ -19,6 +19,21 @@ export function ThresholdSettingsPage() {
     action: '',
   });
   const [loading, setLoading] = useState(true);
+  const [customAction, setCustomAction] = useState(false);
+
+  // Danh sách hành động được định nghĩa sẵn
+  const predefinedActions = [
+    'Bật thiết bị',
+    'Tắt thiết bị',
+    'Bật quạt',
+    'Tắt quạt',
+    'Bật máy bơm',
+    'Tắt máy bơm',
+    'Bật đèn',
+    'Tắt đèn',
+    'Gửi cảnh báo',
+    'Gửi thông báo khẩn cấp',
+  ];
 
   useEffect(() => {
     const loadData = async () => {
@@ -46,10 +61,31 @@ export function ThresholdSettingsPage() {
 
   const handleAddRule = async () => {
     if (isReadOnly) return;
+    
+    // Validate action không được để trống
+    if (!ruleForm.action || ruleForm.action.trim() === '') {
+      toast.error('Vui lòng chọn hoặc nhập hành động');
+      return;
+    }
+    
+    // Validate min < max
+    if (ruleForm.minValue >= ruleForm.maxValue) {
+      toast.error('Giá trị tối thiểu phải nhỏ hơn giá trị tối đa');
+      return;
+    }
+    
     try {
       const newRule = await thresholdApi.create(ruleForm as any);
       setRules(prev => [newRule, ...prev]);
       setShowRuleModal(false);
+      setCustomAction(false);
+      setRuleForm({
+        deviceId: devices[0]?.id || '',
+        parameter: 'temperature',
+        minValue: 0,
+        maxValue: 100,
+        action: '',
+      });
       toast.success('Đã thêm quy tắc ngưỡng mới!');
     } catch (error) {
       toast.error('Lỗi khi thêm quy tắc');
@@ -191,12 +227,48 @@ export function ThresholdSettingsPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Hành động tự động (VD: Bật quạt)</label>
-                <input
-                  value={ruleForm.action}
-                  onChange={e => setRuleForm(p => ({ ...p, action: e.target.value }))}
-                  className="form-input"
-                />
+                <label className="block text-xs text-gray-500 mb-1.5 uppercase tracking-wider">Hành động tự động</label>
+                
+                {!customAction ? (
+                  <div className="space-y-2">
+                    <CustomSelect
+                      value={ruleForm.action}
+                      onChange={v => setRuleForm(p => ({ ...p, action: v }))}
+                      options={predefinedActions.map(a => ({ value: a, label: a }))}
+                      placeholder="Chọn hành động..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setCustomAction(true)}
+                      className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                    >
+                      + Nhập hành động tùy chỉnh
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      value={ruleForm.action}
+                      onChange={e => setRuleForm(p => ({ ...p, action: e.target.value }))}
+                      className="form-input"
+                      placeholder="VD: Bật quạt tốc độ cao"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomAction(false);
+                        setRuleForm(p => ({ ...p, action: '' }));
+                      }}
+                      className="text-xs text-gray-600 hover:text-gray-700 hover:underline"
+                    >
+                      ← Quay lại chọn từ danh sách
+                    </button>
+                  </div>
+                )}
+                
+                <p className="text-xs text-gray-400 mt-1.5">
+                  Hành động này sẽ được ghi vào nhật ký khi ngưỡng bị vượt quá
+                </p>
               </div>
             </div>
             <div className="flex gap-3 mt-7">

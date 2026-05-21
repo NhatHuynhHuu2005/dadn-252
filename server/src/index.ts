@@ -15,6 +15,7 @@ import schedulesRouter from './routes/schedules.js';
 import actionLogsRouter from './routes/action-logs.js';
 import sensorHistoryRouter from './routes/sensor-history.js';
 import thresholdsRouter from './routes/thresholds.js';
+import { startScheduler, stopScheduler } from './scheduler.js';
 
 dotenv.config();
 
@@ -36,6 +37,10 @@ console.log('Initializing database...');
     await initDatabase();
     await seedDatabase();
     console.log('✅ Database ready');
+    
+    // Start scheduler after database is ready
+    startScheduler();
+    console.log('✅ Scheduler started');
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
     process.exit(1);
@@ -72,4 +77,24 @@ server.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
   console.log(`🔌 WebSocket available at ws://localhost:${PORT}/ws`);
   console.log(`🗄️ Database: MSSQL`);
+  console.log(`⏰ Scheduler: Active`);
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+  console.log('\n🛑 Shutting down gracefully...');
+  stopScheduler();
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGTERM', () => {
+  console.log('\n🛑 SIGTERM received, shutting down...');
+  stopScheduler();
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
 });

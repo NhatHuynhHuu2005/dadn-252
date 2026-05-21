@@ -14,13 +14,23 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-// Update a threshold rule (Toggle active)
+// Update a threshold rule
 router.put('/:id', async (req: Request, res: Response) => {
   try {
-    const { isActive } = req.body;
+    const { isActive, minValue, maxValue, parameter, action } = req.body;
+    
+    const currentRule = await getAsync('SELECT * FROM threshold_rules WHERE id = ?', [req.params.id]);
+    if (!currentRule) return res.status(404).json({ error: 'Threshold rule not found' });
+    
+    const newIsActive = isActive !== undefined ? (isActive ? 1 : 0) : currentRule.isActive;
+    const newMinValue = minValue !== undefined ? minValue : currentRule.minValue;
+    const newMaxValue = maxValue !== undefined ? maxValue : currentRule.maxValue;
+    const newParameter = parameter !== undefined ? parameter : currentRule.parameter;
+    const newAction = action !== undefined ? action : currentRule.action;
+
     await runAsync(
-      `UPDATE threshold_rules SET isActive = ? WHERE id = ?`,
-      [isActive ? 1 : 0, req.params.id]
+      `UPDATE threshold_rules SET isActive = ?, minValue = ?, maxValue = ?, parameter = ?, action = ? WHERE id = ?`,
+      [newIsActive, newMinValue, newMaxValue, newParameter, newAction, req.params.id]
     );
     const rule = await getAsync('SELECT * FROM threshold_rules WHERE id = ?', [req.params.id]);
     res.json(rule);
