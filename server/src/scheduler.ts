@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { allAsync, runAsync } from './db/connection.js';
 import { publishDeviceControl } from './mqtt_client.js';
 
@@ -19,7 +19,7 @@ interface Device {
   fieldId: string;
 }
 
-const activeTasks = new Map<string, cron.ScheduledTask>();
+const activeTasks = new Map<string, ScheduledTask>();
 
 /**
  * Khởi động scheduler - quét database mỗi phút để cập nhật lịch

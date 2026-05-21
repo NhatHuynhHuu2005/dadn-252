@@ -34,10 +34,10 @@ export async function runAsync(
 /**
  * Execute SELECT query and return first row
  */
-export async function getAsync(
+export async function getAsync<T = any>(
   query: string,
   params?: any[]
-): Promise<any | null> {
+): Promise<T | null> {
   try {
     const pool = await getPool();
     const request = pool.request();
@@ -53,7 +53,7 @@ export async function getAsync(
     }
 
     const result = await request.query(query);
-    return result.recordset[0] || null;
+    return (result.recordset[0] as T) || null;
   } catch (error) {
     console.error('getAsync error:', error);
     throw error;
@@ -63,10 +63,10 @@ export async function getAsync(
 /**
  * Execute SELECT query and return all rows
  */
-export async function allAsync(
+export async function allAsync<T = any>(
   query: string,
   params?: any[]
-): Promise<any[]> {
+): Promise<T[]> {
   try {
     const pool = await getPool();
     const request = pool.request();
@@ -82,7 +82,7 @@ export async function allAsync(
     }
 
     const result = await request.query(query);
-    return result.recordset || [];
+    return (result.recordset as T[]) || [];
   } catch (error) {
     console.error('allAsync error:', error);
     throw error;
